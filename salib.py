@@ -300,30 +300,42 @@ def pixelSizeCalibrate(imgBW,thrVal,modelLength,modelWidth):
 def contourHitsEdge(index,contourlist,image):
     # returns a 1 or 0 that signifies that the given contour specified
     # by contourlist[index] hits the maximums (edges) of the image
+    # this is made more difficult by our use of CHAIN_APPROX_SIMPLE when
+    # saving the output coordinates of a contour
     #
     # inputs 
     #
     # outputs
 
-    # get image dimensions and have these be "markers"
-    left_x = 0
-    right_x = image.shape[1]-1
-    top_y = 0
-    bottom_y = image.shape[0]-1
-    # iterate over outline and check if any straight line edges hit the edge
+    # iterate over outline and look for jumps at borders
+    # borders
+    x_left = 1
+    x_right = image.shape[1]-2 # numpy arrays are strange?
+    #print(x_right)
+    y_top = 1
+    y_bottom = image.shape[0]-2
+    #print(y_bottom)
+    # loop variables
+    x_prev = 0
+    y_prev = 0
     edgeConflicts = 0
 
-    for each_pixel in contourlist[index][each_pixel]:
-
-        x = each_pixel[0]
-        y = each_pixel[1]
-        if x == left_x or x == right_x:
+    for each_pixel in contourlist[index]:
+        #print(each_pixel)
+        x = each_pixel[0][0]
+        y = each_pixel[0][1]
+        if (x == x_left or x == x_right) and (y > y_prev or y < y_prev):
+            #print('case1')
             edgeConflicts+=1
-        if y == top_y or y == bottom_y:
+        if (y == y_top or y == y_bottom) and (x > x_prev or x < x_prev):
+            #print('case2')
             edgeConflicts+=1
+        x_prev = x
+        y_prev = y
 
-    if edgeConflicts >= 20:
-        # assume we must be cutting something off from the image
+    #print('edgeconflits = ' + str(edgeConflicts))
+    if edgeConflicts >= 1:
+        # we must be cutting something off from the image
         return 1
     return 0
 

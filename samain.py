@@ -34,7 +34,7 @@ lengthScaleFactor, widthScaleFactor = pixelSizeCalibrate(imageScale,150,bgModelL
 # end size calibrate
 
 # open the files and process each one
-if(debugMode):
+if debugMode:
 	print('make sure there is a SeedImages_debug directory with the inteded images')
 	workingDir = 'SeedImages_debug'
 else:
@@ -43,12 +43,13 @@ else:
 csvfile = open(workingDir + '_processed.csv', 'w')
 fieldnames = ['number','file path','length (cm)','width (cm)','area (pixels)',
 				'color value (R)','color value (G)','color value (B)',
-				'height (pixels)','volume (pixels)','angle (degrees)']
+				'height (pixels)','volume (pixels)','angle (degrees)','error']
 writerObj = csv.DictWriter(csvfile, fieldnames=fieldnames)
 writerObj.writeheader()
 # BEGIN LOOP
 x = 0
 for fileName in glob.glob(workingDir + '/TopImage*'):
+	error = ''
 
 	# navigate to files and open
 	imageColor = cv2.imread(fileName,1) # three channel image (B,G,R)
@@ -81,7 +82,7 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 	#cv2.imshow(str(fileName),imageCroppedBW)
 	#cv2.waitKey(0)
 	#cv2.destroyWindow(str(fileName))
-	if(debugMode):
+	if debugMode:
 		debugThreshTop = imageThreshold(imageCroppedBW,threshTopVal)
 		cv2.imshow(str(fileName),debugThreshTop)
 		cv2.waitKey(0)
@@ -101,7 +102,7 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 	# find SIDE IMAGE height, volume
 	# navigate to files and open
 	fileName_Side = string.replace(fileName,'TopImage','SideImage')
-	if (fileName_Side[-7:-4] == '000'):
+	if fileName_Side[-7:-4] == '000':
 		fileName_Side = string.replace(fileName,'SideImage','Side')
 		# errors propogate... a lazy programmer made this necessary
 
@@ -127,7 +128,7 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 	# end side calculations
 
 	# debug
-	if(debugMode):
+	if debugMode:
 		debugThreshSide = imageThreshold(imageCroppedBW_Side,threshSideVal)
 		cv2.imshow(str(fileName),debugThreshSide)
 		cv2.waitKey(0)
@@ -196,17 +197,18 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 	widthcm = topWidth*widthScaleFactor
 	# end scale
 
-	# check for exceptions
+	# check for errors
 	# case 1 - contour_conflicts_edge
-	topLargestIndex
-	topContours
-	sideLargestIndex
-	sideContours
+	if contourHitsEdge(topLargestIndex,topContours,imageCroppedBW):
+		error += 'contour_conflicts_edge '
 
 	# case 2 - area_too_small
+	if topArea <= 100:
+		error += 'area_too_small '
 
 	# case 3 - area_too_large
-
+	if topArea >= 40000:
+		error += 'area_too_large'
 	# end check for exceptions
 
 	# create debug output
@@ -262,7 +264,7 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 						'area (pixels)':str(topArea),'color value (R)':str(redAverage),
 						'color value (G)':str(greenAverage),'color value (B)':str(blueAverage),
 						'height (pixels)':str(sideWidth),'volume (pixels)':str(volume),
-						'angle (degrees)':str(topRotateAngle)})
+						'angle (degrees)':str(topRotateAngle),'error':error})
 	print('processed: ' + fileName + '  [' + str(x) + ']')
 	x+=1
 csvfile.close()

@@ -4,7 +4,9 @@
 # Kevin Kreher
 # KMK279@cornell.edu
 #
-# compatibility python version 2.7.10
+# compatibility Python version 2.7.10 + OpenCV version 2.4.12
+# there are notes in here for porting 
+# to Python 3 or OpenCV 3 (findContour breaks, etc.)
 
 from salib import *
 import numpy as np
@@ -18,6 +20,7 @@ import string
 
 # debug mode?
 debugMode = input('debug mode? (1 = yes, 0 = no): ')
+# 
 
 # remove lens distortion from all top images
 # using the asymmetrical circle pattern
@@ -38,7 +41,8 @@ if debugMode:
 	print('make sure there is a SeedImages_debug directory with the inteded images')
 	workingDir = 'SeedImages_debug'
 else:
-	workingDir = input('Directory name (ex. test12801/SeedImages)?: ')
+	workingDir = raw_input('Directory name (ex. test12801/SeedImages)?: ')
+	# this was deprecated in Python 3.0, will need to be changed to input
 
 csvfile = open(workingDir + '_processed.csv', 'w')
 fieldnames = ['number','file path','length (cm)','width (cm)','area (pixels)',
@@ -182,14 +186,25 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 	green = 0
 	red = 0
 	i = 0
+	pixelcount = 0
 	while i < len(lst_intensities):
-		blue += lst_intensities[i][0]
-		green += lst_intensities[i][1]
-		red += lst_intensities[i][2]
+		# remove all white reflections 240, 240, 240
+		# keep track of how many pixels actually get analyzed
+		# use this for averaging
+		if lst_intensities[i][0] < 240 and lst_intensities[i][1] < 240 and lst_intensities[i][2] < 240:
+			blue += lst_intensities[i][0]
+			green += lst_intensities[i][1]
+			red += lst_intensities[i][2]
+			pixelcount += 1
 		i += 1
-	blueAverage = blue/len(lst_intensities)
-	greenAverage = green/len(lst_intensities)
-	redAverage = red/len(lst_intensities)
+	if pixelcount > 0:
+		blueAverage = blue/pixelcount
+		greenAverage = green/pixelcount
+		redAverage = red/pixelcount
+	else:
+		blueAverage = 0
+		greenAverage = 0
+		redAverage = 0
 	# end color find
 
 	# scale from pixels to cm
@@ -200,15 +215,15 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 	# check for errors
 	# case 1 - contour_conflicts_edge
 	if contourHitsEdge(topLargestIndex,topContours,imageCroppedBW):
-		error += 'contour_conflicts_edge '
+		error += 'contour_conflicts_edge-'
 
 	# case 2 - area_too_small
 	if topArea <= 100:
-		error += 'area_too_small '
+		error += 'area_too_small-'
 
 	# case 3 - area_too_large
 	if topArea >= 40000:
-		error += 'area_too_large'
+		error += 'area_too_large-'
 	# end check for exceptions
 
 	# create debug output
@@ -245,6 +260,7 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 	heightText = 'height (pixels) = ' + str(sideWidth)
 	volumeText = 'volume (pixels) = ' + str(volume)
 	angleText = 'angle (degrees) = ' + str(topRotateAngle)
+	errorText = error
 	cv2.putText(debugImage,fileName,(10,20),cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
 	cv2.putText(debugImage,lengthText,(10,40),cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
 	cv2.putText(debugImage,widthText,(10,60),cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
@@ -253,8 +269,9 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 	cv2.putText(debugImage,heightText,(10,120),cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
 	cv2.putText(debugImage,volumeText,(10,140),cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
 	cv2.putText(debugImage,angleText,(10,160),cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
+	cv2.putText(debugImage,errorText,(10,180),cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
 
-	if(debugMode):
+	if debugMode:
 		cv2.imshow(str(fileName),debugImage)
 		cv2.waitKey(0)
 		cv2.destroyWindow(str(fileName))

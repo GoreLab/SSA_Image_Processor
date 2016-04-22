@@ -80,6 +80,10 @@ def findMaxSizeBounds(imgBW,thrVal):
 	imageThreshed = imageThreshold(imgBW,thrVal)
 	# end threshold image
 
+	# erode and dilate - removes small imperfections
+	imageThreshed = erodeAndDilate(imageThreshed,np.ones((5,5),np.uint8),1)
+	# end erode and dilate
+
 	# find contours
 	# create copy of image before passing to findContours
 	imageContour = copy.copy(imageThreshed)
@@ -297,6 +301,7 @@ def pixelSizeCalibrate(imgBW,thrVal,modelLength,modelWidth):
 
     return lengthScaleFactor,widthScaleFactor
 
+
 def contourHitsEdge(index,contourlist,image):
     # returns a 1 or 0 that signifies that the given contour specified
     # by contourlist[index] hits the maximums (edges) of the image
@@ -340,13 +345,110 @@ def contourHitsEdge(index,contourlist,image):
     return 0
 
 
+def erodeAndDilate(image, kernel, timesRepeated):
+    # erode: all the pixels near boundary will be discarded depending upon the size of kernel
+    # dilate: pixels at a boundary will be dilated (opposite of erosion)
+
+    # example kernels
+    # Rectangular:
+    # np.ones((5,5),np.uint8)
+    #
+    # Elliptical Kernel
+    #cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(5,5))
+    #array([[0, 0, 1, 0, 0],
+    #   [1, 1, 1, 1, 1],
+    #   [1, 1, 1, 1, 1],
+    #   [1, 1, 1, 1, 1],
+    #   [0, 0, 1, 0, 0]], dtype=uint8)
+    image = cv2.dilate(image, kernel, iterations = timesRepeated)
+    image = cv2.erode(image, kernel, iterations = timesRepeated)
+    return image
+
+def findVolume(topimage,sideimage,scalingfactor):
+    # returns the volume in cm^3
+    # algorithm: by using known seed paramters (angle,length,width) this
+    # approximates an ellipse as the seed shape and
+    # uses Riemann sums to give total value
+    # V = sum(z , pi * x(z) * y(z) * dz )
+    # where:
+    # pi*a*b is the equation for area of an ellipse
+    # z is length of seed in pixels (needs to be equal on both images)
+    # x(z) is the top image seed width at pt z (in cm)
+    # y(z) is the side image seed width at pt z (in cm)
+    # dz is the width of each pixel (in cm)
+    #
+    # inputs
+    #
+    # outputs
+    #
+
+    topImgVariables
+    topLength = topImgVariables['length']
+    topWidth = topImgVariables['width']
+    topRotateAngle = topImgVariables['angle']
+    topCenterPoint = topImgVariables['center']
+    topArea = topImgVariables['area']
+    topLargestIndex = topImgVariables['largestIndex'] 
+    topContours = topImgVariables['contours']
+
+    # once we have length of top image seed and length of side image,
+    # figure out scaling factor for side image sideLength*x=topLength where x = topLength/sideLength
+    # resize side image and run findlengthwidth on it
+
+    # start from the same side of the seed (verify this) and determine the width at that point
+    # ideas to do this
+    # - use the box method below and start at a far corner
+    #   check its (x,y) and now you shift over one x (or y) whichever traces up its length (aka whichever
+    #   is longer), at each point, perform width finding on the image.
+    #   The width finding can be done using 
+
+    # recycled code from 
+
+    # Access the image pixels and create a 1D numpy array then add to list
+    pts = np.where(cimg == 255)
+    # (array([305, 305, 305, ..., 426, 426, 426]), array([507, 508, 509, ..., 707, 711, 712]))
+    
 
 
 
+    # recycled code from findLengthWidth for creating the rectangle
 
+    # create rectangle (rotated) containing seed, and find midpoints
+    bounds = cv2.minAreaRect(contours[largestIndex])
+    # box used for finding midpoints and drawing
+    box = cv2.cv.BoxPoints(bounds) # note cv2.cv.BoxPoints(rect) will be removed in openCV 3
+    #cv2.boxPoints(bounds) - if openCV 3
+    box = np.int0(box)
+    # find midpoints
+    # A = midpoint of points at box[0] and box[1]
+    A = ((box[0][0]+box[1][0])/2 , (box[0][1]+box[1][1])/2)
+    # B = midpoint of box[1] and box[2]
+    B = ((box[1][0]+box[2][0])/2 , (box[1][1]+box[2][1])/2)
+    # C = midpoint of box[2] and box[3]
+    C = ((box[2][0]+box[3][0])/2 , (box[2][1]+box[3][1])/2)
+    # D = midpoint of box[3] and box[0]
+    D = ((box[3][0]+box[0][0])/2 , (box[3][1]+box[0][1])/2)
+    # center = midpoints of A-C line and B-D
+    centerPoint = ((B[0]+D[0])/2 , (A[1]+C[1])/2)
+    # end create rectangle, midpoints
 
+    # code for rotating an image (do this before scaling??)
 
+    # rotate the seed image so its length is along the x-axis
+    if topRotateAngle != 0:
+        imageCroppedBWRotated = rotateImage(imageCroppedBW,topRotateAngle,topCenterPoint)
+        # useful for complex volume finding alogirthm
+    # end rotate
 
+    # top:
+    # find each point along the the line tracing the length
+    # at each z, find the x
+
+    # side
+    # find each point along the the line tracing the length
+    # at each z, find the y
+
+    return volume_cm3
 
 
 

@@ -88,6 +88,7 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 	#cv2.destroyWindow(str(fileName))
 	if debugMode:
 		debugThreshTop = imageThreshold(imageCroppedBW,threshTopVal)
+		debugThreshTop = erodeAndDilate(debugThreshTop,np.ones((5,5),np.uint8),1)
 		cv2.imshow(str(fileName),debugThreshTop)
 		cv2.waitKey(0)
 		cv2.destroyWindow(str(fileName))
@@ -134,6 +135,7 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 	# debug
 	if debugMode:
 		debugThreshSide = imageThreshold(imageCroppedBW_Side,threshSideVal)
+		debugThreshSide = erodeAndDilate(debugThreshSide,np.ones((5,5),np.uint8),1)
 		cv2.imshow(str(fileName),debugThreshSide)
 		cv2.waitKey(0)
 		cv2.destroyWindow(str(fileName))

@@ -16,24 +16,28 @@ import math
 import csv
 import string
 
-# note: pre-process for color with Picasa
+# note: pre-process first
+# correct color with Picasa or similar
+# remove lens distortion if possible (negligible for seeds falling into center of FOV)
+# Run through Guo's algorithm to remove background
 
 # debug mode?
 debugMode = input('debug mode? (1 = yes, 0 = no): ')
-# 
-
-# remove lens distortion from all top images
-# using the asymmetrical circle pattern
-#lensCorrectImages(6,7)
-# end distort remove
+# end debug mode check
 
 # calibrate pixel size to centimeters
 # we don't repeat this for each image
-bgModelLength = 4.5 # change this - in cm
-bgModelWidth = 3 # change this - in cm
-fileName = 'calibration/scale02.bmp'
-imageScale = cv2.imread(fileName,0)
-lengthScaleFactor, widthScaleFactor = pixelSizeCalibrate(imageScale,150,bgModelLength,bgModelWidth)
+# pixelSizeCalibrate is an attempt at automating this
+# but it should not change in most cases, if it does change, the manual calibration
+# method will work as well
+#bgModelLength = 4.5 # change this - in cm
+#bgModelWidth = 3 # change this - in cm
+#fileName = 'calibration/scale02.bmp'
+#imageScale = cv2.imread(fileName,0)
+#lengthScaleFactorTop, widthScaleFactorTop = pixelSizeCalibrate(imageScale,150,bgModelLength,bgModelWidth)
+lengthScaleFactorTop = .003151 # cm/pixel at (set distance) from lense
+widthScaleFactorTop = lengthScaleFactorTop # cm/pixel
+ScaleFactorSide = .003801 # cm/pixel at 2.25 inches from lens
 # end size calibrate
 
 # open the files and process each one
@@ -42,12 +46,12 @@ if debugMode:
 	workingDir = 'SeedImages_debug'
 else:
 	workingDir = raw_input('Directory name (ex. test12801/SeedImages)?: ')
-	# this was deprecated in Python 3.0, will need to be changed to input
+	# this was deprecated in Python 3.0, will need to be changed to input, not raw_input
 
 csvfile = open(workingDir + '_processed.csv', 'w')
 fieldnames = ['number','file path','length (cm)','width (cm)','area (pixels)',
 				'color value (R)','color value (G)','color value (B)',
-				'height (pixels)','volume (pixels)','angle (degrees)','error']
+				'height (cm)','volume (cm3)','angle (degrees)','error']
 writerObj = csv.DictWriter(csvfile, fieldnames=fieldnames)
 writerObj.writeheader()
 # BEGIN LOOP
@@ -66,12 +70,16 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 	#cv2.destroyWindow(str(fileName))
 
 	# crop image
-	imageCroppedBW = imageBW[150:950,150:1450] # NOTE: its image[y: y + h, x: x + w]
-	imageCroppedColor = imageColor[150:950,150:1450]
+	cropystart = 150
+	cropyend = 950
+	cropxstart = 150
+	cropxend = 1650
+	imageCroppedBW = imageBW[cropystart:cropyend,cropxstart:cropxend] # NOTE: its image[y: y + h, x: x + w]
+	imageCroppedColor = imageColor[cropystart:cropyend,cropxstart:cropxend]
 	# end crop image
 
 	# calculate length, width, area, and debug variables
-	threshTopVal = 125
+	threshTopVal = 70
 	topImgVariables = findLengthWidth(imageCroppedBW,threshTopVal)
 	topLength = topImgVariables['length']
 	topWidth = topImgVariables['width']
@@ -87,7 +95,7 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 	#cv2.waitKey(0)
 	#cv2.destroyWindow(str(fileName))
 	if debugMode:
-		debugThreshTop = imageThreshold(imageCroppedBW,threshTopVal)
+		unused, debugThreshTop = cv2.threshold(imageCroppedBW,threshTopVal,255,cv2.THRESH_BINARY)
 		debugThreshTop = erodeAndDilate(debugThreshTop,np.ones((5,5),np.uint8),1)
 		cv2.imshow(str(fileName),debugThreshTop)
 		cv2.waitKey(0)
@@ -116,12 +124,16 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 	# end navigate
 
 	# crop image
-	imageCroppedBW_Side = imageBW_Side[390:940,900:970] # NOTE: its image[y: y + h, x: x + w]
-	imageCroppedColor_Side = imageColor_Side[390:940,900:970]
+	cropystart = 390
+	cropyend = 950
+	cropxstart = 850
+	cropxend = 970
+	imageCroppedBW_Side = imageBW_Side[cropystart:cropyend,cropxstart:cropxend] # NOTE: its image[y: y + h, x: x + w]
+	imageCroppedColor_Side = imageColor_Side[cropystart:cropyend,cropxstart:cropxend]
 	# end crop image
 
 	# calculate length, width (height because side), area, and debug variables
-	threshSideVal = 125
+	threshSideVal = 90
 	sideImgVariables = findLengthWidth(imageCroppedBW_Side,threshSideVal)
 	sideLength = sideImgVariables['length']
 	sideWidth = sideImgVariables['width']
@@ -134,7 +146,7 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 
 	# debug
 	if debugMode:
-		debugThreshSide = imageThreshold(imageCroppedBW_Side,threshSideVal)
+		unused, debugThreshSide = cv2.threshold(imageCroppedBW_Side,threshSideVal,255,cv2.THRESH_BINARY)
 		debugThreshSide = erodeAndDilate(debugThreshSide,np.ones((5,5),np.uint8),1)
 		cv2.imshow(str(fileName),debugThreshSide)
 		cv2.waitKey(0)
@@ -145,19 +157,30 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 		cv2.waitKey(0)
 		cv2.destroyWindow(str(fileName))
 
+	# check for errors
+	# case 1 - contour_conflicts_edge
+	if contourHitsEdge(topLargestIndex,topContours,imageCroppedBW):
+		error += 'contour_conflicts_edge-'
+
+	# case 2 - area_too_small
+	if topArea <= 100:
+		error += 'area_too_small-'
+
+	# case 3 - area_too_large
+	if topArea >= 40000:
+		error += 'area_too_large-'
+
+	# case 4 - over angle
+	if topRotateAngle > 80:
+		error += 'angle_over_80-'
+	# end check for exceptions
+
 	# calculate volume
-	#
-	# we do this by multiplying the top area times the height
-	#
-	# this may be made into a more complex function call
-	# in the future, but for now it is simple because 
-	# our height is uncalibrated
-	#	(by using as many height+width
-	#	combinations as possible and know seed to side image
-	#	angle. Make the measurements arguements to an ellipse
-	#	and use the ellipses to fill out the seed along its length
-	#	summing along the way to find total value)
-	volume = topArea*sideWidth
+	if len(error) == 0:
+		volume = findVolume(imageCroppedBW,imageCroppedBW_Side,topImgVariables,sideImgVariables,threshSideVal,lengthScaleFactorTop,ScaleFactorSide)
+		# running volume on poorly formed numpy arrays is a bad idea
+	else:
+		volume = 0
 	# end geometry calculation
 
 	# find average color value
@@ -210,23 +233,10 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 	# end color find
 
 	# scale from pixels to cm
-	lengthcm = topLength*lengthScaleFactor
-	widthcm = topWidth*widthScaleFactor
+	lengthcm = topLength*lengthScaleFactorTop
+	widthcm = topWidth*widthScaleFactorTop
+	heightcm = sideWidth*ScaleFactorSide
 	# end scale
-
-	# check for errors
-	# case 1 - contour_conflicts_edge
-	if contourHitsEdge(topLargestIndex,topContours,imageCroppedBW):
-		error += 'contour_conflicts_edge-'
-
-	# case 2 - area_too_small
-	if topArea <= 100:
-		error += 'area_too_small-'
-
-	# case 3 - area_too_large
-	if topArea >= 40000:
-		error += 'area_too_large-'
-	# end check for exceptions
 
 	# create debug output
 	debugImage = imageCroppedColor
@@ -259,8 +269,8 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 	widthText = 'width (cm) = ' + str(widthcm)
 	areaText = 'area (pixels) = ' + str(topArea)
 	colorValueText = 'color value (R G B) = (' + str(redAverage) + "," + str(greenAverage) + "," + str(blueAverage) + ")"
-	heightText = 'height (pixels) = ' + str(sideWidth)
-	volumeText = 'volume (pixels) = ' + str(volume)
+	heightText = 'height (cm) = ' + str(heightcm)
+	volumeText = 'volume (cm3) = ' + str(volume)
 	angleText = 'angle (degrees) = ' + str(topRotateAngle)
 	errorText = error
 	cv2.putText(debugImage,fileName,(10,20),cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
@@ -282,13 +292,14 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 						'length (cm)':str(lengthcm),'width (cm)':str(widthcm),
 						'area (pixels)':str(topArea),'color value (R)':str(redAverage),
 						'color value (G)':str(greenAverage),'color value (B)':str(blueAverage),
-						'height (pixels)':str(sideWidth),'volume (pixels)':str(volume),
+						'height (cm)':str(heightcm),'volume (cm3)':str(volume),
 						'angle (degrees)':str(topRotateAngle),'error':error})
 	print('processed: ' + fileName + '  [' + str(x) + ']')
-	x+=1
+	x += 1
 csvfile.close()
 # !!!!!END LOOP!!!!!
 print('done: data saved in ' + workingDir + '_processed.csv')
+exit() # purposeful crash, this can be changed when this is turned into a MAIN function
 
 # write debug output and show image
 #cv2.imwrite('debug.bmp',debugImage)

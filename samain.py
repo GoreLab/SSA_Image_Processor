@@ -70,12 +70,12 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 	#cv2.destroyWindow(str(fileName))
 
 	# crop image
-	cropystart = 150
-	cropyend = 950
-	cropxstart = 150
-	cropxend = 1650
-	imageCroppedBW = imageBW[cropystart:cropyend,cropxstart:cropxend] # NOTE: its image[y: y + h, x: x + w]
-	imageCroppedColor = imageColor[cropystart:cropyend,cropxstart:cropxend]
+	#cropystart = 150
+	#cropyend = 950
+	#cropxstart = 150
+	#cropxend = 1650
+	imageCroppedBW = imageBW#[cropystart:cropyend,cropxstart:cropxend] # NOTE: its image[y: y + h, x: x + w]
+	imageCroppedColor = imageColor#[cropystart:cropyend,cropxstart:cropxend]
 	# end crop image
 
 	# calculate length, width, area, and debug variables
@@ -124,12 +124,12 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 	# end navigate
 
 	# crop image
-	cropystart = 390
-	cropyend = 950
-	cropxstart = 850
-	cropxend = 970
-	imageCroppedBW_Side = imageBW_Side[cropystart:cropyend,cropxstart:cropxend] # NOTE: its image[y: y + h, x: x + w]
-	imageCroppedColor_Side = imageColor_Side[cropystart:cropyend,cropxstart:cropxend]
+	#cropystart = 390
+	#cropyend = 950
+	#cropxstart = 850
+	#cropxend = 970
+	imageCroppedBW_Side = imageBW_Side#[cropystart:cropyend,cropxstart:cropxend] # NOTE: its image[y: y + h, x: x + w]
+	imageCroppedColor_Side = imageColor_Side#[cropystart:cropyend,cropxstart:cropxend]
 	# end crop image
 
 	# calculate length, width (height because side), area, and debug variables
@@ -177,11 +177,19 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 
 	# calculate volume
 	if len(error) == 0:
-		volume = findVolume(imageCroppedBW,imageCroppedBW_Side,topImgVariables,sideImgVariables,threshSideVal,lengthScaleFactorTop,ScaleFactorSide)
+		# before passing side image, we will rotate it so the long axis of the seedis in line
+		# with the x-axis in the image
+		# we will not have to rotate it often
+		if sideRotateAngle != 0:
+			imageRotated_Side = rotateImage(imageCroppedBW_Side,sideRotateAngle,sideCenterPoint)
+			sideImgVariables_forVol = findLengthWidth(imageRotated_Side,threshSideVal)
+		else:
+			sideImgVariables_forVol = sideImgVariables
+		volume = findVolume(imageCroppedBW,imageCroppedBW_Side,topImgVariables,sideImgVariables_forVol,threshSideVal,lengthScaleFactorTop,ScaleFactorSide)
 		# running volume on poorly formed numpy arrays is a bad idea
 	else:
 		volume = 0
-	# end geometry calculation
+	# end volume calculation
 
 	# find average color value
 	# uses top images only because color correction was performed

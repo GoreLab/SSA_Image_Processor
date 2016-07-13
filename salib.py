@@ -72,100 +72,6 @@ def findMaxSizeBounds(imgBW,thrVal):
     return {'seedIndex':largestIndex, 'contourList':contours}
 
 
-def lensCorrectImages(row,col):
-    # removes lens distortion
-    # currently replaced in our program flow with Hugin for lens correction
-    # algorithm works on all images in working directory
-    # must be preprocessed with Picasa (note: Picasa makes all jpg)
-    #
-    # Sources:
-    # http://opencv-python-tutroals.readthedocs.org
-    # /en/latest/py_tutorials/py_calib3d/py_calibration/py_calibration.html
-    # 
-    # http://docs.opencv.org/2.4/doc/tutorials/calib3d/camera_calibration
-    # /camera_calibration.html
-    # 
-    # Based of the asymmetrical circle pattern found below:
-    # http://docs.opencv.org/2.4/_downloads/acircles_pattern.png
-    #
-    # MUST HAVE >10 CALIBRATION IMAGES IN DIRECTORY /calibration/ as .jpg
-    # MUST HAVE SEED IMAGES IN DIRECTORY /seedImages/ as .jpg
-    #
-    # row - rows of asymmetrical circle pattern to detect (can be smaller than printed)
-    # col - columns of asymmetrical circle pattern to detect (can be smaller than printed)
-    # be sure that image directory locations are correct
-    #
-    # returns 1
-
-    pts_x = row #6
-    pts_y = col #7
-
-    # termination criteria
-    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
-
-    # prepare object points, like (0,0,0), (1,0,0), (2,0,0) ....,(6,5,0)
-    objp = np.zeros((pts_x*pts_y,3), np.float32)
-    objp[:,:2] = np.mgrid[0:pts_y,0:pts_x].T.reshape(-1,2)
-
-    # Arrays to store object points and image points from all the images.
-    objpoints = [] # 3d point in real world space
-    imgpoints = [] # 2d points in image plane.
-
-    # calibration image directory, need at least 10
-    images = glob.glob('calibration/*.jpg')
-
-    for fname in images:
-        img = cv2.imread(fname)
-        gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
-
-        # Find the circle centers
-        ret, centers = cv2.findCirclesGrid(gray, (pts_y,pts_x),cv2.CALIB_CB_SYMMETRIC_GRID)
-
-        # If found, add object points, image points (after refining them)
-        if ret == True:
-            objpoints.append(objp)
-
-            # unused for circle pattern
-            #corners2 = cv2.cornerSubPix(gray,corners,(11,11),(-1,-1),criteria)
-
-            imgpoints.append(centers)
-
-            # Draw and display the centers
-            img = cv2.drawChessboardCorners(img, (pts_y,pts_x), centers,ret)
-            cv2.imshow('img',img)
-            cv2.waitKey(500)
-
-    cv2.destroyAllWindows()
-
-    # calculate camera characteristics
-    ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1],None,None)
-
-
-    # undistort all images in working directory
-    imagesCorr = glob.glob('seeedImages/TopImage*.jpg')
-	# undistort top images only
-
-    for fname in imagesCorr:
-
-    	# debug test
-    	print fname
-
-    	# undistort the specified image
-    	img = cv2.imread(fname)
-    	h,  w = img.shape[:2]
-    	newcameramtx, roi=cv2.getOptimalNewCameraMatrix(mtx,dist,(w,h),1,(w,h))
-    	dst = cv2.undistort(img, mtx, dist, None, newcameramtx)
-
-    	# crop the image
-    	x,y,w,h = roi
-    	dst = dst[y:y+h, x:x+w]
-    	cv2.imshow(fname,dst)
-    	cv2.waitKey(0)
-    	#cv2.imwrite(fname,dst)
-
-    return 1
-
-
 def findLengthWidth(workingImg,thrVal):
     # find seed contour - at a certain index position in the list of contours found
     # workingImg - image with seed to find length and width of
@@ -448,8 +354,8 @@ def ellipseAxes(numpyTop,numpySide):
     prevTopPt = numpyTop[0][0]
     starty = numpyTop[1][0]
     while i < len(numpyTop[0]):
-        # we assume numpyTop[0] is the array of x values
-        # and we assume numpyTop[1] is the array of y values
+        # numpyTop[0] is the array of x values
+        # numpyTop[1] is the array of y values
         if prevTopPt != numpyTop[0][i]:
             # aka if the x value changes, we know to measure how much y has changed
             endy = numpyTop[1][i-1]
@@ -469,8 +375,8 @@ def ellipseAxes(numpyTop,numpySide):
     prevSidePt = numpySide[0][0]
     starty = numpySide[1][0]
     while i < len(numpySide[0]):
-        # we assume numpySide[0] is the array of x values
-        # and we assume numpySide[1] is the array of y values
+        # numpySide[0] is the array of x values
+        # numpySide[1] is the array of y values
         if prevSidePt != numpySide[0][i]:
             # aka if the x value changes, we know to measure how much y has changed
             endy = numpySide[1][i-1]

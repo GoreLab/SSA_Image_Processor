@@ -81,9 +81,30 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 	# calculate length, width, area, and debug variables
 	threshTopVal = 70
 	topImgVariables = findLengthWidth(imageCroppedBW,threshTopVal)
+	topLength_norotate = topImgVariables['length']
+	topWidth_norotate = topImgVariables['width']
+	topRotateAngle_norotate = topImgVariables['angle']
+	topCenterPoint_norotate = topImgVariables['center']
+	topArea_norotate = topImgVariables['area']
+	topLargestIndex_norotate = topImgVariables['largestIndex'] 
+	topContours_norotate = topImgVariables['contours']
+
+	# rotate the top seed image so its length is along the x-axis
+	if abs(topRotateAngle_norotate) > 5:
+		imageCroppedBWRotated = rotateImage(imageCroppedBW,topRotateAngle_norotate,topCenterPoint_norotate)
+	else:
+		imageCroppedBWRotated = imageCroppedBW
+		# angle is OK, fill in the variables to continue working
+	# useful for complex volume finding alogirthm
+	# end rotate
+
+	#recalculate length,width,area,debug variables
+	topImgVariables = findLengthWidth(imageCroppedBWRotated,threshTopVal)
 	topLength = topImgVariables['length']
 	topWidth = topImgVariables['width']
 	topRotateAngle = topImgVariables['angle']
+	print('angle = ' + str(topRotateAngle))
+	print('angle_norotate = ' + str(topRotateAngle_norotate))
 	topCenterPoint = topImgVariables['center']
 	topArea = topImgVariables['area']
 	topLargestIndex = topImgVariables['largestIndex'] 
@@ -91,26 +112,20 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 	# end top calculations
 
 	# debug
-	#cv2.imshow(str(fileName),imageCroppedBW)
+	#cv2.imshow(str(fileName),imageCroppedBWRotated)
 	#cv2.waitKey(0)
 	#cv2.destroyWindow(str(fileName))
 	if debugMode:
-		unused, debugThreshTop = cv2.threshold(imageCroppedBW,threshTopVal,255,cv2.THRESH_BINARY)
+		unused, debugThreshTop = cv2.threshold(imageCroppedBWRotated,threshTopVal,255,cv2.THRESH_BINARY)
 		debugThreshTop = erodeAndDilate(debugThreshTop,np.ones((5,5),np.uint8),1)
 		cv2.imshow(str(fileName),debugThreshTop)
 		cv2.waitKey(0)
 		cv2.destroyWindow(str(fileName))
 		debugContourTop = imageCroppedColor
-		cv2.drawContours(debugContourTop,topContours,topLargestIndex,(0,0,255),3)
+		cv2.drawContours(debugContourTop,topContours_norotate,topLargestIndex_norotate,(0,0,255),3)
 		cv2.imshow(str(fileName),debugContourTop)
 		cv2.waitKey(0)
 		cv2.destroyWindow(str(fileName))
-
-	# rotate the seed image so its length is along the x-axis
-	if topRotateAngle != 0:
-		imageCroppedBWRotated = rotateImage(imageCroppedBW,topRotateAngle,topCenterPoint)
-		# useful for complex volume finding alogirthm
-	# end rotate
 
 	# find SIDE IMAGE height, volume
 	# navigate to files and open
@@ -159,19 +174,19 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 
 	# check for errors
 	# case 1 - contour_conflicts_edge
-	if contourHitsEdge(topLargestIndex,topContours,imageCroppedBW):
+	if contourHitsEdge(topLargestIndex_norotate,topContours_norotate,imageCroppedBW):
 		error += 'contour_conflicts_edge-'
 
 	# case 2 - area_too_small
-	if topArea <= 100:
+	if topArea_norotate <= 100:
 		error += 'area_too_small-'
 
 	# case 3 - area_too_large
-	if topArea >= 40000:
+	if topArea_norotate >= 40000:
 		error += 'area_too_large-'
 
 	# case 4 - over angle
-	if topRotateAngle > 80:
+	if abs(topRotateAngle_norotate) > 80:
 		error += 'angle_over_80-'
 	# end check for exceptions
 
@@ -180,12 +195,12 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 		# before passing side image, we will rotate it so the long axis of the seedis in line
 		# with the x-axis in the image
 		# we will not have to rotate it often
-		if sideRotateAngle != 0:
+		if abs(sideRotateAngle) > 6:
 			imageRotated_Side = rotateImage(imageCroppedBW_Side,sideRotateAngle,sideCenterPoint)
 			sideImgVariables_forVol = findLengthWidth(imageRotated_Side,threshSideVal)
 		else:
 			sideImgVariables_forVol = sideImgVariables
-		volume = findVolume(imageCroppedBW,imageCroppedBW_Side,topImgVariables,sideImgVariables_forVol,threshSideVal,lengthScaleFactorTop,ScaleFactorSide)
+		volume = findVolume(imageCroppedBWRotated,imageCroppedBW_Side,topImgVariables,sideImgVariables_forVol,threshSideVal,lengthScaleFactorTop,ScaleFactorSide)
 		# running volume on poorly formed numpy arrays is a bad idea
 	else:
 		volume = 0
@@ -200,7 +215,7 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 	lst_intensities = []
 	# Create a mask image that contains the contour filled in
 	cimg = np.zeros_like(imageCroppedBW)
-	cv2.drawContours(cimg,topContours,topLargestIndex,255,-1)
+	cv2.drawContours(cimg,topContours_norotate,topLargestIndex_norotate,255,-1)
 
 	# debug
 	#cv2.imshow('debugOutput_mask',cimg)
@@ -249,10 +264,10 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 	# create debug output
 	debugImage = imageCroppedColor
 	# draw contour trace
-	cv2.drawContours(debugImage,topContours,topLargestIndex,(0,0,255),1)
+	cv2.drawContours(debugImage,topContours_norotate,topLargestIndex_norotate,(0,0,255),1)
 	# draw rectangle
 	# create top image rectangle (rotated) containing seed, and find midpoints
-	bounds = cv2.minAreaRect(topContours[topLargestIndex])
+	bounds = cv2.minAreaRect(topContours_norotate[topLargestIndex_norotate])
 	# box used for finding midpoints and drawing
 	box = cv2.cv.BoxPoints(bounds) # note cv2.cv.BoxPoints(rect) will be removed in openCV 3
 	#cv2.boxPoints(bounds) - if openCV 3
@@ -269,17 +284,17 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 	#cv2.putText(debugImage,'C',C,cv2.FONT_HERSHEY_SIMPLEX,.5,(0,255,0))
 	#cv2.circle(debugImage,D,2,(0,255,0),-1)
 	#cv2.putText(debugImage,'D',D,cv2.FONT_HERSHEY_SIMPLEX,.5,(0,255,0))
-	cv2.circle(debugImage,topCenterPoint,2,(0,255,0),-1)
-	cv2.putText(debugImage,'ctr',topCenterPoint,cv2.FONT_HERSHEY_SIMPLEX,.5,(0,255,0))
+	cv2.circle(debugImage,topCenterPoint_norotate,2,(0,255,0),-1)
+	cv2.putText(debugImage,'ctr',topCenterPoint_norotate,cv2.FONT_HERSHEY_SIMPLEX,.5,(0,255,0))
 
 	# add text
 	lengthText = 'length (cm) = ' + str(lengthcm)
 	widthText = 'width (cm) = ' + str(widthcm)
-	areaText = 'area (pixels) = ' + str(topArea)
+	areaText = 'area (pixels) = ' + str(topArea_norotate)
 	colorValueText = 'color value (R G B) = (' + str(redAverage) + "," + str(greenAverage) + "," + str(blueAverage) + ")"
 	heightText = 'height (cm) = ' + str(heightcm)
 	volumeText = 'volume (cm3) = ' + str(volume)
-	angleText = 'angle (degrees) = ' + str(topRotateAngle)
+	angleText = 'angle (degrees) = ' + str(topRotateAngle_norotate)
 	errorText = error
 	cv2.putText(debugImage,fileName,(10,20),cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
 	cv2.putText(debugImage,lengthText,(10,40),cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
@@ -298,10 +313,10 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 
 	writerObj.writerow({'number':str(x),'file path':fileName,
 						'length (cm)':str(lengthcm),'width (cm)':str(widthcm),
-						'area (pixels)':str(topArea),'color value (R)':str(redAverage),
+						'area (pixels)':str(topArea_norotate),'color value (R)':str(redAverage),
 						'color value (G)':str(greenAverage),'color value (B)':str(blueAverage),
 						'height (cm)':str(heightcm),'volume (cm3)':str(volume),
-						'angle (degrees)':str(topRotateAngle),'error':error})
+						'angle (degrees)':str(topRotateAngle_norotate),'error':error})
 	print('processed: ' + fileName + '  [' + str(x) + ']')
 	x += 1
 csvfile.close()

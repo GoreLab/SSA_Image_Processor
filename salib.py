@@ -280,18 +280,28 @@ def findVolume(topimage,sideimage,topImgVariables,sideImgVariables,threshSideVal
     #sideImgVariables
     sideLength = sideImgVariables['length']
     sideWidth = sideImgVariables['width']
+    #sideCenterPoint = sideImgVariables['center']
 
     # once we have length of top image seed and length of side image,
     # figure out scaling factor for side image sideLength*x=topLength where x = topLength/sideLength
     # resize side image and run findlengthwidth on it
     vol_length_SideScaleFactor = float(topLength)/float(sideLength) # pixels/pixels
-    vol_width_SideScaleFactor = float(topWidth)/float(sideWidth)
     # assume length lies along x axis
-    sideResizedImage = cv2.resize(sideimage,None,fx=vol_length_SideScaleFactor,fy=vol_width_SideScaleFactor)
+    sideResizedImage = cv2.resize(sideimage,None,fx=vol_length_SideScaleFactor,fy=1)
     sideResizedImgVariables = findLengthWidth(sideResizedImage,threshSideVal)
     
     sideResizedLargestIndex = sideResizedImgVariables['largestIndex'] 
     sideResizedContours = sideResizedImgVariables['contours']
+    sideResizedCenterPoint = sideResizedImgVariables['center']
+
+    # debug check that the resize worked properly
+    #print('sideimg angle = ' + str(sideResizedImgVariables['angle']))
+    #print('sideimg resized length = ' + str(sideResizedImgVariables['length']))
+    #print('sideimg resized width = ' + str(sideResizedImgVariables['width']))
+    #print('topimg angle = ' + str(topRotateAngle))
+    #print('topimg length = ' + str(topLength))
+    #print('topimg width = ' + str(topWidth))
+
 
     # Create two mask images that contain the contours filled in - one for top one for side
     topimg = np.zeros_like(topimage)
@@ -300,22 +310,33 @@ def findVolume(topimage,sideimage,topImgVariables,sideImgVariables,threshSideVal
     sideimg = np.zeros_like(sideResizedImage)
     cv2.drawContours(sideimg,sideResizedContours,sideResizedLargestIndex,255,-1)
 
+    # rotate by 90 degrees so the numpy arrays are formatted more clearly (they
+    # work with the ellipseAxes function as expected in the case of volume finding)
+    topimg = cv2.transpose(topimg)
+    sideimg = cv2.transpose(sideimg)
+
     # Access the image pixels and create a 1D numpy array then add to list
     topPts = np.where(topimg == 255)
     sidePts = np.where(sideimg == 255)
     cv2.imshow('debug',topimg)
     cv2.waitKey(0)
     cv2.destroyWindow('debug')
+    cv2.imshow('debug side',sideimg)
+    cv2.waitKey(0)
+    cv2.destroyWindow('debug side')
     # (array([305, 305, 305, ..., 426, 426, 426]), array([507, 508, 509, ..., 707, 711, 712]))
 
     axesMeasurements = ellipseAxes(topPts,sidePts)
+    # useful for debugging ellipseAxes
+    #print('axes0 = ' + str(len(axesMeasurements[0])))
+    #print('axes1 = ' + str(len(axesMeasurements[1])))
 
     dz = topScale # dz is ellipse width, we rescaled to use the topimage as the standard
     i = 0
     summation = 0
-    print('axes0= ' + str(len(axesMeasurements[0])))
-    print('axes1= ' + str(len(axesMeasurements[1])))
+
     while i < len(axesMeasurements[0]):
+        # note: top tends to always have the least 
         # scaling factors go in the line below
         ellipseArea = math.pi*(axesMeasurements[0][i]*topScale)*(axesMeasurements[1][i]*sideScale*vol_length_SideScaleFactor)
         summation += ellipseArea*dz
@@ -332,7 +353,7 @@ def ellipseAxes(numpyTop,numpySide):
     # numpy arrays representing seed from the side
     # example:
     # (array([305, 305, 305, ..., 426, 426, 426]), array([507, 508, 509, ..., 707, 711, 712]))
-    #
+    # or (array([656, 656, 656, ..., 732, 732, 733]), array([1073, 1074, 1075, ..., 1081, 1082, 1078]))
     # output
     # list of x(z) values (ellipse a axis) - in pixels
     # list of y(z) values (ellipse b axis) - in pixels
@@ -348,44 +369,56 @@ def ellipseAxes(numpyTop,numpySide):
     # - at start of x: record 100... end of x record 103
     # - see above
 
+    x = 0
+    y = 1
+
+    # debug outputs
+    #print('TOPxlen = ' + str(len(numpyTop[x])))
+    #print('TOPylen = ' + str(len(numpyTop[y])))
+    #print('SIDExlen = ' + str(len(numpySide[x])))
+    #print('SIDEylen = ' + str(len(numpySide[y])))
+    #np.set_printoptions(threshold=np.inf) #show the whole numpy array (CAN BE HUGE)
+    #print(numpyTop)
+    #print(numpySide)
+
     i = 0
     n = 0
     top = []
-    prevTopPt = numpyTop[0][0]
-    starty = numpyTop[1][0]
-    while i < len(numpyTop[0]):
-        # numpyTop[0] is the array of x values
-        # numpyTop[1] is the array of y values
-        if prevTopPt != numpyTop[0][i]:
+    prevTopPt = numpyTop[x][0]
+    starty = numpyTop[y][0]
+    while i < len(numpyTop[x]):
+        # numpyTop[x] is the array of x values
+        # numpyTop[y] is the array of y values
+        if prevTopPt != numpyTop[x][i]:
             # aka if the x value changes, we know to measure how much y has changed
-            endy = numpyTop[1][i-1]
+            endy = numpyTop[y][i-1]
             topCalculated = endy-starty
             top.append(topCalculated)
+            #print('top[n] = ' + str(top[n]))
             n += 1
-            #print top[n]
             # we have moved over one in the seed, calculate the last difference
             # save it as a top[n] and move on
-            starty = numpyTop[1][i]
-            prevTopPt = numpyTop[0][i]
+            starty = numpyTop[y][i]
+            prevTopPt = numpyTop[x][i]
         i += 1
 
     i = 0
     m = 0
     side = []
-    prevSidePt = numpySide[0][0]
-    starty = numpySide[1][0]
-    while i < len(numpySide[0]):
-        # numpySide[0] is the array of x values
-        # numpySide[1] is the array of y values
-        if prevSidePt != numpySide[0][i]:
+    prevSidePt = numpySide[x][0]
+    starty = numpySide[y][0]
+    while i < len(numpySide[x]):
+        # numpySide[x] is the array of x values
+        # numpySide[y] is the array of y values
+        if prevSidePt != numpySide[x][i]:
             # aka if the x value changes, we know to measure how much y has changed
-            endy = numpySide[1][i-1]
+            endy = numpySide[y][i-1]
             sideCalculated = endy-starty
             side.append(sideCalculated)
+            #print('top[m] = ' + str(top[m]))
             m += 1
-            #print side[m]
-            starty = numpySide[1][i]
-            prevSidePt = numpySide[0][i]
+            starty = numpySide[y][i]
+            prevSidePt = numpySide[x][i]
         i += 1
 
 

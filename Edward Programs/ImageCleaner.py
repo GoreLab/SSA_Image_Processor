@@ -37,10 +37,13 @@ if imagesAltered == "n" or imagesAltered == "N":
                                redOut)
         alter_color_correction((DirPath + "\\SeedImages\\Side\\"), (DirPath + "\\Edited\\Side\\"), redOut, greenOut,
                                blueOut)
-    # Runs the cropping of all images this is done so that processing time during use of the CART algorithms doesn't 
-    # take as long
-    alter_side((DirPath + "\\Edited\\Side\\"), (DirPath + "\\Edited\\Side\\"))
-    alter_top_crop((DirPath + "\\Edited\\Top\\"), (DirPath + "\\Edited\\Top\\"))
+        # Runs the cropping of all images this is done so that processing time during use of the CART algorithms doesn't
+        # take as long
+        alter_side((DirPath + "\\Edited\\Side\\"), (DirPath + "\\Edited\\Side\\"))
+        alter_top_crop((DirPath + "\\Edited\\Top\\"), (DirPath + "\\Edited\\Top\\"))
+    else:
+        alter_side((DirPath + "\\SeedImages\\Side\\"), (DirPath + "\\Edited\\Side\\"))
+        alter_top_crop((DirPath + "\\SeedImages\\Top\\"), (DirPath + "\\Edited\\Top\\"))
 # Creation of variables used in the auto cropping of the side images
 CARTDirPath = DirPath + "\\Plate"
 originalDirPathSide = DirPath + "\\Edited\Side"

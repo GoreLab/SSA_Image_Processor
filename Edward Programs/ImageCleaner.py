@@ -10,40 +10,42 @@ from MyFunctions import *
 # Asking user what needs to be done in terms of set up note inputs are not required to be capital 
 DirPath = raw_input("What is the directory path(Directory with all images)?")
 filesMade = raw_input("Has the correct file structure been made?(Y/N): ")
-imagesAltered = raw_input("are the images cropped and corrected?(Y/N): ")
-# Creating file structure is specified that it hasn't been done already
-if filesMade == "n" or filesMade == "N":
-    plate_cleanup_file_creation(DirPath)
-# Does color correction to images by asking the user for the chanel values found from the color correction card and then 
-# after discerning what the correction value should be uses the function to run the correction
-if imagesAltered == "n" or imagesAltered == "N":
-    ColorCorrectionDone = raw_input("was color correction done on the top and side images? (Y/N)")
-    if ColorCorrectionDone == "n" or ColorCorrectionDone == "N":
-        redIn = input("please input the red value from the 'gray 3 square': ")
-        red = 120
-        redOut = red - redIn
-        print("change in red will be: " + str(redOut))
-        greenIn = input("please input the green value from the 'gray 3 square': ")
-        green = 120
-        greenOut = green - greenIn
-        print("change in green will be: " + str(greenOut))
-        blueIn = input("please input the blue value from the 'gray 3 square': ")
-        blue = 120
-        blueOut = blue - blueIn
-        print("change in blue will be: " + str(blueOut))
-        # Runs color correction on both side and top images this is dependant heavily on images being in the right 
-        # files if images are out of place this will cause problems
-        alter_color_correction((DirPath + "\\SeedImages\\Top\\"), (DirPath + "\\Edited\\Top\\"), blueOut, greenOut,
-                               redOut)
-        alter_color_correction((DirPath + "\\SeedImages\\Side\\"), (DirPath + "\\Edited\\Side\\"), redOut, greenOut,
-                               blueOut)
-        # Runs the cropping of all images this is done so that processing time during use of the CART algorithms doesn't
-        # take as long
-        alter_side((DirPath + "\\Edited\\Side\\"), (DirPath + "\\Edited\\Side\\"))
-        alter_top_crop((DirPath + "\\Edited\\Top\\"), (DirPath + "\\Edited\\Top\\"))
-    else:
-        alter_side((DirPath + "\\SeedImages\\Side\\"), (DirPath + "\\Edited\\Side\\"))
-        alter_top_crop((DirPath + "\\SeedImages\\Top\\"), (DirPath + "\\Edited\\Top\\"))
+correctionCropDone = raw_input("Have all images already been edited and only the auto crop needs to run?(Y/N):")
+if correctionCropDone == "n" or correctionCropDone == "N0":
+    imagesAltered = raw_input("are the images cropped and corrected?(Y/N): ")
+    # Creating file structure is specified that it hasn't been done already
+    if filesMade == "n" or filesMade == "N":
+        plate_cleanup_file_creation(DirPath)
+    # Does color correction to images by asking the user for the chanel values found from the color correction card and then
+    # after discerning what the correction value should be uses the function to run the correction
+    if imagesAltered == "n" or imagesAltered == "N":
+        ColorCorrectionDone = raw_input("was color correction done on the top and side images? (Y/N)")
+        if ColorCorrectionDone == "n" or ColorCorrectionDone == "N":
+            redIn = input("please input the red value from the 'gray 3 square': ")
+            red = 120
+            redOut = red - redIn
+            print("change in red will be: " + str(redOut))
+            greenIn = input("please input the green value from the 'gray 3 square': ")
+            green = 120
+            greenOut = green - greenIn
+            print("change in green will be: " + str(greenOut))
+            blueIn = input("please input the blue value from the 'gray 3 square': ")
+            blue = 120
+            blueOut = blue - blueIn
+            print("change in blue will be: " + str(blueOut))
+            # Runs color correction on both side and top images this is dependant heavily on images being in the right
+            # files if images are out of place this will cause problems
+            alter_color_correction((DirPath + "\\SeedImages\\Top\\"), (DirPath + "\\Edited\\Top\\"), blueOut, greenOut,
+                                   redOut)
+            alter_color_correction((DirPath + "\\SeedImages\\Side\\"), (DirPath + "\\Edited\\Side\\"), redOut, greenOut,
+                                   blueOut)
+            # Runs the cropping of all images this is done so that processing time during use of the CART algorithms doesn't
+            # take as long
+            alter_side((DirPath + "\\Edited\\Side\\"), (DirPath + "\\Edited\\Side\\"))
+            alter_top_crop((DirPath + "\\Edited\\Top\\"), (DirPath + "\\Edited\\Top\\"))
+        else:
+            alter_side((DirPath + "\\SeedImages\\Side\\"), (DirPath + "\\Edited\\Side\\"))
+            alter_top_crop((DirPath + "\\SeedImages\\Top\\"), (DirPath + "\\Edited\\Top\\"))
 # Creation of variables used in the auto cropping of the side images
 CARTDirPath = DirPath + "\\Plate"
 originalDirPathSide = DirPath + "\\Edited\Side"
@@ -51,9 +53,9 @@ newPathBW = CARTDirPath + "\BlackAndWhiteCleaned"
 newPathCropped = CARTDirPath + "\CroppedImages"
 # Making the user run the "Plate" CART algorithm on the edited side images
 plateCARTMade = "notDone"
-while plateCARTMade == "notDone":
+while plateCARTMade != "Y" or plateCARTMade != "y":
     plateCARTMade = raw_input(
-        "please type in 'y' when you have completed running the plate CART algorithm on the images in edited/side and placed the output in the plate folder")
+        "please type in 'Y' when you have completed running the plate CART algorithm on the images in edited/side and placed the output in the plate folder")
 # Auto Cropping of side images note that it skips over the 0 image as that was simply a starting image and never
 # has a seed in it
 for file in os.listdir(CARTDirPath):

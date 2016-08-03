@@ -3,8 +3,7 @@ __author__ = 'Edward Buckler V'
 # the output of the cart images will have to be renamed as it includes the date it was run on. Also all images must be 
 # of .png file type
 # in future I will try to work around this and make the program more versatile
-
-import os, sys
+import os
 import shutil
 
 # Asks user for botht the directory of the black images and the original images

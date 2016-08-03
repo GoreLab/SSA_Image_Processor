@@ -1,9 +1,11 @@
 __author__ = 'Edward Buckler V'
 # Program made in response to many of the images from ImageCleaner not being cropped correctly. Has two functions
 # getting the average dimensions of images in a directory and placing all images over a set value pixels
-import cv2
-import os, sys
+import os
+import sys
 import shutil
+import cv2
+
 # Asks user for the directory containing the images and what process should be run
 dirPath = raw_input("input path of directory with images in it: ")
 programToRun = raw_input("Which program to run average (average) or flag (find ones which are too large)?: ")

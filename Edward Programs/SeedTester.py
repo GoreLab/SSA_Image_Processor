@@ -2,8 +2,6 @@ __author__ = 'Edward Buckler V'
 # the goal of this program is to test if a seed image is empty by making it into a binary image then testing for
 # white pixels by testing rows and columns spaced out by given values
 from MyFunctions import *
-import os, sys
-import shutil
 
 # Asks user for the the path of the images, space between rows/columns, and number of rows/columns allowed before
 # flagging of image

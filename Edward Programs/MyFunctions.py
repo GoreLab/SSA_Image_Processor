@@ -1,10 +1,11 @@
 __author__ = 'Edward Buckler V'
 # functions to make life easier used in many of my programs
+import shutil
+import os
 import cv2
 import numpy as np
 from PIL import Image
-import shutil
-import os
+
 
 # Turns a image into a binary image (black and white) if given the image and cut off for
 # for white values

@@ -2,9 +2,6 @@ __author__ = 'Edward Buckler V'
 # Find copies is the response to the possibility that there may be images of the same seed from the same day which was
 # thought to be a the reason for the extra seed images on both may 15th and may 17th.
 from MyFunctions import *
-import shutil
-import os
-
 
 # Asks user for the path to the txt file that matches the SSA data spreadsheet
 # Asks user for the path to all images from the day in question

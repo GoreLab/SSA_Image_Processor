@@ -2,10 +2,10 @@ __author__ = 'Edward Buckler V'
 # The goal of this program is to take side and top images and crop them down so that the CART algorithm
 # can actually find the seed rather then picking up all the noise/inclusions. Also it helps in speeding up the
 # whole process
+# because the color correction takes so long on this it is advised that you use something like IrfanView to do that step
+# it is still of course still possible to do that through this program it just may add quite a lot of time
+# cropping on the other hand is quite fast so using this program to do that is still reasonably fast
 from MyFunctions import *
-import os, sys
-
-
 
 # Asking user what needs to be done in terms of set up note inputs are not required to be capital 
 DirPath = raw_input("What is the directory path(Directory with all images)?")

@@ -1,9 +1,9 @@
 __author__ = 'Edward Buckler V'
 # The goal of this program was to test if a seed is touching the side of the image by creating a black and white
 # image then testing for white pixels at the left and right sides
+
 from MyFunctions import *
-import os, sys
-import shutil
+
 
 # Asks user to input the directory path with all images
 dirPath = raw_input("input path of directory with images in it: ")

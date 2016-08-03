@@ -1,5 +1,5 @@
-__author__ = 'Edward'
-
+__author__ = 'Edward Buckler V'
+# functions to make life easier used in many of my programs
 import cv2
 import numpy as np
 from PIL import Image
@@ -196,6 +196,7 @@ def alter_color_correction(dirPath, saveDirPath, blueOut, greenOut, redOut):
                         elif cv2im.item(yVal, xVal, 0) >= 255 - blueOut:
                             cv2im.itemset((yVal, xVal, 0), 255)
             cv2.imwrite(saveDirPath + file, cv2im)
+
 
 # converts numbers
 def num_convert(num):

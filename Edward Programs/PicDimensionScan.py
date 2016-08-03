@@ -1,4 +1,4 @@
-__author__ = 'Edward'
+__author__ = 'Edward Buckler V'
 # Program made in response to many of the images from ImageCleaner not being cropped correctly. Has two functions
 # getting the average dimensions of images in a directory and placing all images over a set value pixels
 import cv2

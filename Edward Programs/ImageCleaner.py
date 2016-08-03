@@ -1,4 +1,4 @@
-__author__ = 'Edward'
+__author__ = 'Edward Buckler V'
 # The goal of this program is to take side and top images and crop them down so that the CART algorithm
 # can actually find the seed rather then picking up all the noise/inclusions. Also it helps in speeding up the
 # whole process

@@ -48,6 +48,7 @@ def findMaxSizeBounds(imgBW,thrVal):
     x,imageThreshed = cv2.threshold(imgBW,thrVal,255,cv2.THRESH_BINARY)
 	# end threshold image
 
+
 	# erode and dilate - removes small imperfections
     imageThreshed = erodeAndDilate(imageThreshed,np.ones((5,5),np.uint8),1)
 	# end erode and dilate
@@ -80,15 +81,16 @@ def findLengthWidth(workingImg,thrVal):
     # returns a list of seed info (length, width, angle, area, center point, index of largest contour and contour list)
     # note the error output  is all 1
 
+
     seedBounds = findMaxSizeBounds(workingImg,thrVal)
     largestIndex = seedBounds['seedIndex']
     contours = seedBounds['contourList']
+
 
     # error catching if NO CONTOUR IS FOUND
     if len(contours) == 0:
         return {'length':1, 'width':1, 'angle':0,
             'center':(1,1), 'area':1, 'largestIndex':0, 'contours':[np.array([[[199, 519]]], dtype=np.int32)]}
-
 
     # create rectangle (rotated) containing seed, and find midpoints
     bounds = cv2.minAreaRect(contours[largestIndex])
@@ -241,9 +243,9 @@ def erodeAndDilate(image, kernel, timesRepeated):
     #   [1, 1, 1, 1, 1],
     #   [1, 1, 1, 1, 1],
     #   [0, 0, 1, 0, 0]], dtype=uint8)
-    image = cv2.dilate(image, kernel, iterations = timesRepeated)
-    image = cv2.erode(image, kernel, iterations = timesRepeated)
-    return image
+    image1 = cv2.dilate(image, kernel, iterations = timesRepeated)
+    image2 = cv2.erode(image1, kernel, iterations = timesRepeated)
+    return image2
 
 def findVolume(topimage,sideimage,topImgVariables,sideImgVariables,threshSideVal,topScale,sideScale):
     # returns the volume in cm^3
@@ -318,12 +320,12 @@ def findVolume(topimage,sideimage,topImgVariables,sideImgVariables,threshSideVal
     # Access the image pixels and create a 1D numpy array then add to list
     topPts = np.where(topimg == 255)
     sidePts = np.where(sideimg == 255)
-    cv2.imshow('debug',topimg)
-    cv2.waitKey(0)
-    cv2.destroyWindow('debug')
-    cv2.imshow('debug side',sideimg)
-    cv2.waitKey(0)
-    cv2.destroyWindow('debug side')
+    #cv2.imshow('debug',topimg)
+    #cv2.waitKey(0)
+    #cv2.destroyWindow('debug')
+    #cv2.imshow('debug side',sideimg)
+    #cv2.waitKey(0)
+    #cv2.destroyWindow('debug side')
     # (array([305, 305, 305, ..., 426, 426, 426]), array([507, 508, 509, ..., 707, 711, 712]))
 
     axesMeasurements = ellipseAxes(topPts,sidePts)
@@ -334,11 +336,22 @@ def findVolume(topimage,sideimage,topImgVariables,sideImgVariables,threshSideVal
     dz = topScale # dz is ellipse width, we rescaled to use the topimage as the standard
     i = 0
     summation = 0
+    integrate_over = 0
 
-    while i < len(axesMeasurements[0]):
-        # note: top tends to always have the least 
+    # trying to use all available integration points
+    # but in some cased the length rounds incorrectly
+    # so we need to drop a shell of negligible size
+    lenTop = len(axesMeasurements[0])
+    lenSide = len(axesMeasurements[1])
+    if lenSide < lenTop:
+        integrate_over = lenSide
+    else:
+        integrate_over = lenTop
+
+
+    while i < integrate_over:
         # scaling factors go in the line below
-        ellipseArea = math.pi*(axesMeasurements[0][i]*topScale)*(axesMeasurements[1][i]*sideScale*vol_length_SideScaleFactor)
+        ellipseArea = math.pi*(axesMeasurements[0][i]*topScale)*(axesMeasurements[1][i]*sideScale/vol_length_SideScaleFactor)
         summation += ellipseArea*dz
         i += 1
 
@@ -423,5 +436,43 @@ def ellipseAxes(numpyTop,numpySide):
 
 
     return (top,side)
+
+
+
+def calcSideScaleFactor(centerpoint,cropleft,croptop,topScale,eqM,eqB,xIntersect,distCamera_in):
+    # set side scale factor (cm/pixel) based on center point
+    # can work with a preexisting crop on the images (given as variables)
+    # 
+    # args:
+    # centerpoint - (x,y) of seed center point
+    # cropleft - amount left side was cropped by, a modification would be made if right crop
+    # croptop - amount top was cropped by, a modification would be made if bottom crop
+    # topScale - topscale amount (cm/pixel)
+    # eqM - "distance from camera equation" slope
+    # eqB - "distance from camera equation" offset
+    # xIntersect - in pixels, where ruler exits bottom of image, intersect point in x (y=bottom row)
+    # distCamera_in - distance camera is from bottom of frame
+    #
+    # returns:
+    # calculates sideScaleFactor for use in samain script
+
+    # given x and y in inches that the side camera is out of the topImage shot
+    distCamera_cm = 2.54*distCamera_in
+    distCamera = distCamera_cm/topScale
+    # use centerpoint to calculate the distance in pixels from the lens itself
+    ximgsize = 1920-cropleft
+    yimgsize = 1080-croptop
+
+    X = abs(centerpoint[0]-xIntersect)
+    Y = abs(yimgsize-centerpoint[1])
+    distance = distCamera + math.sqrt((X)**2+(Y)**2)
+    distance_cm = distance*topScale
+    distance_in = distance_cm/2.54
+    print('distance_in = '+str(distance_in))
+
+    # given distance from side camera, use eqM and eqB (solved from topScale image)
+    scalefactor = distance_in*eqM+eqB
+
+    return scalefactor
 
 

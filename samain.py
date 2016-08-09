@@ -35,9 +35,13 @@ debugMode = input('debug mode? (1 = yes, 0 = no): ')
 #fileName = 'calibration/scale02.bmp'
 #imageScale = cv2.imread(fileName,0)
 #lengthScaleFactorTop, widthScaleFactorTop = pixelSizeCalibrate(imageScale,150,bgModelLength,bgModelWidth)
-lengthScaleFactorTop = .003151 # cm/pixel at (set distance) from lense
+lengthScaleFactorTop = 0.003118 # cm/pixel at (set distance) from lense
 widthScaleFactorTop = lengthScaleFactorTop # cm/pixel
-ScaleFactorSide = .003801 # cm/pixel at 2.25 inches from lens
+side_ScaleFactor_eqM = 0.00154 # slope for equation as calculated by scaling factor calculator
+side_ScaleFactor_eqB = 0.0003111 # offset for equation as calculated by scaling factor calculator
+side_ScaleFactor_intersectX = 466 # using ruler placed flat, also see CameraDist_in
+CameraDist_in = 1.65625 # distance in inches that camera is out of image
+#ScaleFactorSide = 0.00339 # cm/pixel 
 # end size calibrate
 
 # open the files and process each one
@@ -55,6 +59,7 @@ fieldnames = ['number','file path','length (cm)','width (cm)','area (pixels)',
 writerObj = csv.DictWriter(csvfile, fieldnames=fieldnames)
 writerObj.writeheader()
 # BEGIN LOOP
+print('Processing directory: ' + workingDir)
 x = 0
 for fileName in glob.glob(workingDir + '/TopImage*'):
 	error = ''
@@ -103,8 +108,8 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 	topLength = topImgVariables['length']
 	topWidth = topImgVariables['width']
 	topRotateAngle = topImgVariables['angle']
-	print('angle = ' + str(topRotateAngle))
-	print('angle_norotate = ' + str(topRotateAngle_norotate))
+	#print('angle = ' + str(topRotateAngle))
+	#print('angle_norotate = ' + str(topRotateAngle_norotate))
 	topCenterPoint = topImgVariables['center']
 	topArea = topImgVariables['area']
 	topLargestIndex = topImgVariables['largestIndex'] 
@@ -127,12 +132,15 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 		cv2.waitKey(0)
 		cv2.destroyWindow(str(fileName))
 
+
 	# find SIDE IMAGE height, volume
 	# navigate to files and open
 	fileName_Side = string.replace(fileName,'TopImage','SideImage')
-	if fileName_Side[-7:-4] == '000':
-		fileName_Side = string.replace(fileName,'SideImage','Side')
-		# errors propogate... a lazy programmer made this necessary
+	#if fileName_Side[-7:-4] == '000':
+	#	fileName_Side = string.replace(fileName,'SideImage','Side')
+	#	# errors propogate... a lazy programmer made this necessary
+	fileName_Side = string.replace(fileName_Side,'-27-','-26-') # hack :(
+	print('REMOVE THIS!' + ' fileName_Side = ' + fileName_Side)
 
 	imageColor_Side = cv2.imread(fileName_Side,1) # three channel image (B,G,R)
 	imageBW_Side = cv2.imread(fileName_Side,0)
@@ -147,6 +155,7 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 	imageCroppedColor_Side = imageColor_Side#[cropystart:cropyend,cropxstart:cropxend]
 	# end crop image
 
+
 	# calculate length, width (height because side), area, and debug variables
 	threshSideVal = 90
 	sideImgVariables = findLengthWidth(imageCroppedBW_Side,threshSideVal)
@@ -158,6 +167,13 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 	sideLargestIndex = sideImgVariables['largestIndex'] 
 	sideContours = sideImgVariables['contours']
 	# end side calculations
+
+	#ScaleFactorSide now calculated per seed
+	ScaleFactorSide = calcSideScaleFactor(topCenterPoint_norotate,200,200,lengthScaleFactorTop,side_ScaleFactor_eqM,side_ScaleFactor_eqB,side_ScaleFactor_intersectX,CameraDist_in)
+	print('scaleFactorSide = ' + str(ScaleFactorSide))
+	# end scaleFactorSide calculations
+
+
 
 	# debug
 	if debugMode:
@@ -172,26 +188,32 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 		cv2.waitKey(0)
 		cv2.destroyWindow(str(fileName))
 
+
 	# check for errors
 	# case 1 - contour_conflicts_edge
 	if contourHitsEdge(topLargestIndex_norotate,topContours_norotate,imageCroppedBW):
 		error += 'contour_conflicts_edge-'
 
-	# case 2 - area_too_small
+	# case 2 - area_too_small_top
 	if topArea_norotate <= 100:
-		error += 'area_too_small-'
+		error += 'area_too_small_top-'
 
-	# case 3 - area_too_large
+	# case 3 - area_too_small_side
+	if sideArea <= 100:
+		error += 'area_too_small_side-'
+
+	# case 4 - area_too_large
 	if topArea_norotate >= 40000:
 		error += 'area_too_large-'
 
-	# case 4 - over angle
+	# case 5 - over angle
 	if abs(topRotateAngle_norotate) > 80:
 		error += 'angle_over_80-'
 	# end check for exceptions
 
+
 	# calculate volume
-	if len(error) == 0:
+	if len(error) < 1:
 		# before passing side image, we will rotate it so the long axis of the seedis in line
 		# with the x-axis in the image
 		# we will not have to rotate it often
@@ -201,6 +223,7 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 		else:
 			sideImgVariables_forVol = sideImgVariables
 		volume = findVolume(imageCroppedBWRotated,imageCroppedBW_Side,topImgVariables,sideImgVariables_forVol,threshSideVal,lengthScaleFactorTop,ScaleFactorSide)
+		#print('volume = ' + str(volume)) # debug output
 		# running volume on poorly formed numpy arrays is a bad idea
 	else:
 		volume = 0
@@ -321,7 +344,7 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 	x += 1
 csvfile.close()
 # !!!!!END LOOP!!!!!
-print('done: data saved in ' + workingDir + '_processed.csv')
+print('>>> Done: data saved in ' + workingDir + '_processed.csv')
 exit() # purposeful crash, this can be changed when this is turned into a MAIN function
 
 # write debug output and show image

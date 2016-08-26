@@ -15,5 +15,5 @@ for file in os.listdir(dirPathFind):
     if file.endswith(".jpg") or file.endswith(".png"):
         if not os.path.exists(dirPathFind + "\\TestOriginal"):
             os.makedirs(dirPathFind + "\\TestOriginal")
-        targetSeed = dirPathOriginal + "\\" + file[:13] + ".png"
-        shutil.copy2(dirPathOriginal + "\\" + file[:13] + "png", dirPathFind + "\\TestOriginal")
+        targetSeed = dirPathOriginal + "\\" + file[:14] + ".png"
+        shutil.copy2(dirPathOriginal + "\\" + file[:14] + ".png", dirPathFind + "\\TestOriginal")

@@ -11,7 +11,7 @@ from MyFunctions import *
 DirPath = raw_input("What is the directory path(Directory with all images)?")
 filesMade = raw_input("Has the correct file structure been made?(Y/N): ")
 correctionCropDone = raw_input("Have all images already been edited and only the auto crop needs to run?(Y/N):")
-if correctionCropDone == "n" or correctionCropDone == "N0":
+if correctionCropDone == "n" or correctionCropDone == "N":
     imagesAltered = raw_input("are the images cropped and corrected?(Y/N): ")
     # Creating file structure is specified that it hasn't been done already
     if filesMade == "n" or filesMade == "N":

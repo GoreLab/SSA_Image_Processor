@@ -26,9 +26,11 @@ for file in os.listdir(dirPath):
             os.makedirs(dirPath + "\\EasyPCCIm")
         if not os.path.exists(dirPath + "\\Output"):
             os.makedirs(dirPath + "\\Output")
+
+holdHere = raw_input("type in somthing when easy PCC is done")
 qEasyPCCImList = []
 easyPCCImList = []
-for file in os.listdir(dirPath + "\\CroppedImages"):
+for file in os.listdir(dirPath + "\\EasyPCCIm"):
     if file.endswith(".tif") or file.endswith(".png") or file.endswith(".jpg"):
         qEasyPCCImList.append(file)
 designatedImages = []
@@ -43,18 +45,18 @@ for file in qEasyPCCImList:
         easyPCCImList.append(tempList)
 count = 0
 for file in easyPCCImList:
-    with Image.open(dirPath + "\\CroppedImages\\" + file[1]) as im:
+    with Image.open(dirPath + "\\EasyPCCIm\\" + file[1]) as im:
         imageWidth, imageHeight = im.size
     newIm = Image.new('RGB', (imageSizes[count]))
     count += 1
-    imageQ1 = Image.open(dirPath + "\\CroppedImages\\" + file[0])
-    imageQ2 = Image.open(dirPath + "\\CroppedImages\\" + file[1])
-    imageQ3 = Image.open(dirPath + "\\CroppedImages\\" + file[2])
-    imageQ4 = Image.open(dirPath + "\\CroppedImages\\" + file[3])
+    imageQ1 = Image.open(dirPath + "\\EasyPCCIm\\" + file[0])
+    imageQ2 = Image.open(dirPath + "\\EasyPCCIm\\" + file[1])
+    imageQ3 = Image.open(dirPath + "\\EasyPCCIm\\" + file[2])
+    imageQ4 = Image.open(dirPath + "\\EasyPCCIm\\" + file[3])
 
     newIm.paste(imageQ1, (imageWidth, 0))
     newIm.paste(imageQ2, (0, 0))
     newIm.paste(imageQ3, (0, imageHeight))
     newIm.paste(imageQ4, (imageWidth, imageHeight))
-    savePath = dirPath + "\\Output\\" + file[0][1:]
+    savePath = dirPath + "\\Output\\" + file[0][1:-4]+".tif"
     newIm.save(savePath, "TIFF")

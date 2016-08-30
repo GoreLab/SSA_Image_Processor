@@ -18,7 +18,8 @@ if programToRun != "flag" and programToRun != "average":
 else:
     count = 0
     for file in os.listdir(dirPath):
-        if file.endswith(".jpg") or file.endswith(".png") or file.endswith(".jpeg") and programToRun == "average":
+        if file.endswith(".jpg") or file.endswith(".png") or file.endswith(".jpeg") or file.endswith(".tif") and programToRun == "average":
+            print(file)
             image = cv2.imread(dirPath + "\\" + file)
             X = (len(image))
             Y = (len(image[0,]))
@@ -26,7 +27,7 @@ else:
             heightTotal += Y
 
             count += 1
-        if file.endswith(".jpg") or file.endswith(".png") and programToRun == "flag":
+        if file.endswith(".jpg") or file.endswith(".png") or file.endswith(".tif") and programToRun == "flag":
             image = cv2.imread(dirPath + "\\" + file)
             X = (len(image))
             Y = (len(image[0,]))

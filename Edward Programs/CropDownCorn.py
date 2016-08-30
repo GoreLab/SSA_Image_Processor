@@ -6,15 +6,25 @@ from PIL import Image
 import cv2
 from MyFunctions import *
 # Asks user for path to all images that need to be cropped down
-dirPath = "D:\work\TestTif"  # raw_input("please enter in the directory file path: ")
-# cycles through each image in given path and crops 4 times (for each quadrant) and puts in a seperate folder
+dirPath = raw_input("please enter in the directory file path: ")
+# cycles through each image in given path and crops 4 times (for each quadrant) and puts in a separate folder
 imageSizes = []
 for file in os.listdir(dirPath):
+    # File creation
+    if not os.path.exists(dirPath + "\\EasyPCCIm"):
+        os.makedirs(dirPath + "\\EasyPCCIm")
+    if not os.path.exists(dirPath + "\\Output"):
+        os.makedirs(dirPath + "\\Output")
+    if not os.path.exists(dirPath + "\\OutputPNG"):
+        os.makedirs(dirPath + "\\OutputPNG")
     if not os.path.exists(dirPath + "\\CroppedImages"):
         os.makedirs(dirPath + "\\CroppedImages")
     # makes sure that the file being tested is in fact a acceptable image
+    if file.endswith(".tfw"):
+        shutil.copy2(dirPath + "\\" + file, dirPath + "\\Output\\" + file)
     if file.endswith(".tif") or file.endswith(".png") or file.endswith(".jpg"):
         # gets the image size
+        print(file)
         with Image.open(dirPath + "\\" + file) as im:
             imageWidth, imageHeight = im.size
         # adds the image size to a list
@@ -26,14 +36,10 @@ for file in os.listdir(dirPath):
         image.crop((0, imageHeight / 2, imageWidth / 2, imageHeight)).save(dirPath + "\\CroppedImages\\3" + file)
         image.crop((imageWidth / 2, imageHeight / 2, imageWidth, imageHeight)).save(
             dirPath + "\\CroppedImages\\4" + file)
-        # File creation
-        if not os.path.exists(dirPath + "\\EasyPCCIm"):
-            os.makedirs(dirPath + "\\EasyPCCIm")
-        if not os.path.exists(dirPath + "\\Output"):
-            os.makedirs(dirPath + "\\Output")
+
 
 # waits for the user to do the Easy pcc step
-holdHere = raw_input("type in somthing when easy PCC is done")
+holdHere = raw_input("type in anything when easy PCC is done processing the cropped images: ")
 qEasyPCCImList = []
 easyPCCImList = []
 # creates a list of all images modified by Easy pcc
@@ -54,7 +60,7 @@ for file in qEasyPCCImList:
         easyPCCImList.append(tempList)
 
 count = 0
-# stiches all images back together and saves them as a tif
+# stitches all images back together and saves them as a tif
 for file in easyPCCImList:
     with Image.open(dirPath + "\\EasyPCCIm\\" + file[1]) as im:
         imageWidth, imageHeight = im.size
@@ -68,5 +74,14 @@ for file in easyPCCImList:
     newIm.paste(imageQ2, (0, 0))
     newIm.paste(imageQ3, (0, imageHeight))
     newIm.paste(imageQ4, (imageWidth, imageHeight))
-    savePath = dirPath + "\\Output\\" + file[0][1:-4] + ".tif"
-    newIm.save(savePath, "TIFF")
+    # newIm = newIm.convert('1') #this has been taken out as it makes a checker board pattern
+    savePathTIF = dirPath + "\\Output\\" + file[0][1:-4] + ".tif"
+    savePathPNG = dirPath + "\\OutputPNG\\" + file[0][1:-4] + ".png"
+    newIm.save(savePathPNG, "PNG")
+    newImCV2 = cv2.imread(savePathPNG)
+    newImCV2 = cv2.cvtColor(newImCV2, cv2.COLOR_BGR2GRAY)
+    th, newImCV2 = cv2.threshold(newImCV2, 1, 255, cv2.THRESH_BINARY)
+    newImCV2 = fill_holes(newImCV2)
+    cv2.imwrite(savePathPNG, newImCV2)
+    convertIm = Image.open(savePathPNG)
+    convertIm.save(savePathTIF, "TIFF")

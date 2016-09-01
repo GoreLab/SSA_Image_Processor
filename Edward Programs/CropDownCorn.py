@@ -1,9 +1,9 @@
 __author__ = 'Edward Buckler V'
-# Goal of this program was to take a very large image and cut it into quadrants so that easy pcc can deal with it more
-# easily
-import os
-from PIL import Image
-import cv2
+# The goal of this program is to take a file of TIFs and TFWs and first crop them into quadrants to be processed by Easy
+# PCC than stitch the images back together in a binary cleaned up TIF. This program should be used on images before
+# using PolyCycle. Note that running the TIFs through a program to remove the pyramids might be necessary
+# (Irfan View works well)
+
 from MyFunctions import *
 # Asks user for path to all images that need to be cropped down
 dirPath = raw_input("please enter in the directory file path: ")
@@ -67,10 +67,13 @@ for file in easyPCCImList:
         imageWidth, imageHeight = im.size
     newIm = Image.new('RGB', (imageSizes[count]))
     count += 1
+    # Opens all images
+    print("processing Image: "+file[0][1:-len(file[0]) + 9])
     imageQ1 = Image.open(dirPath + "\\EasyPCCIm\\" + file[0])
     imageQ2 = Image.open(dirPath + "\\EasyPCCIm\\" + file[1])
     imageQ3 = Image.open(dirPath + "\\EasyPCCIm\\" + file[2])
     imageQ4 = Image.open(dirPath + "\\EasyPCCIm\\" + file[3])
+    # Pastes all image into newly created image by quadrant
     newIm.paste(imageQ1, (imageWidth, 0))
     newIm.paste(imageQ2, (0, 0))
     newIm.paste(imageQ3, (0, imageHeight))
@@ -78,7 +81,9 @@ for file in easyPCCImList:
     # newIm = newIm.convert('1') #this has been taken out as it makes a checker board pattern
     savePathTIF = dirPath + "\\Output\\" + file[0][1:-len(file[0]) + 9] + ".tif"
     savePathPNG = dirPath + "\\OutputPNG\\" + file[0][1:-len(file[0]) + 9] + ".png"
+    # Saves the Image as a PNG first so that OpenCV can manipulate it
     newIm.save(savePathPNG, "PNG")
+    # Opens the image in OpenCV converts to grayscale, creates a binary Image, erodes and dilates, than saves
     newImCV2 = cv2.imread(savePathPNG)
     newImCV2 = cv2.cvtColor(newImCV2, cv2.COLOR_BGR2GRAY)
     th, newImCV2 = cv2.threshold(newImCV2, 1, 255, cv2.THRESH_BINARY)
@@ -86,5 +91,6 @@ for file in easyPCCImList:
     newImCV2 = erode(newImCV2, 5, 1)
     newImCV2 = dilate(newImCV2, 5, 1)
     cv2.imwrite(savePathPNG, newImCV2)
+    # Opens the Image in pillow and saves as a tif
     convertIm = Image.open(savePathPNG)
     convertIm.save(savePathTIF, "TIFF")

@@ -39,7 +39,8 @@ for file in os.listdir(dirPath):
 
 
 # waits for the user to do the Easy pcc step
-holdHere = raw_input("type in anything when easy PCC is done processing the cropped images: ")
+holdHere = raw_input(
+    "Click enter/return when Easy PCC is done processing the cropped images (place images in the 'EasyPCCIm' folder): ")
 qEasyPCCImList = []
 easyPCCImList = []
 # creates a list of all images modified by Easy pcc
@@ -75,13 +76,15 @@ for file in easyPCCImList:
     newIm.paste(imageQ3, (0, imageHeight))
     newIm.paste(imageQ4, (imageWidth, imageHeight))
     # newIm = newIm.convert('1') #this has been taken out as it makes a checker board pattern
-    savePathTIF = dirPath + "\\Output\\" + file[0][1:-4] + ".tif"
-    savePathPNG = dirPath + "\\OutputPNG\\" + file[0][1:-4] + ".png"
+    savePathTIF = dirPath + "\\Output\\" + file[0][1:-len(file[0]) + 9] + ".tif"
+    savePathPNG = dirPath + "\\OutputPNG\\" + file[0][1:-len(file[0]) + 9] + ".png"
     newIm.save(savePathPNG, "PNG")
     newImCV2 = cv2.imread(savePathPNG)
     newImCV2 = cv2.cvtColor(newImCV2, cv2.COLOR_BGR2GRAY)
     th, newImCV2 = cv2.threshold(newImCV2, 1, 255, cv2.THRESH_BINARY)
     newImCV2 = fill_holes(newImCV2)
+    newImCV2 = erode(newImCV2, 5, 1)
+    newImCV2 = dilate(newImCV2, 5, 1)
     cv2.imwrite(savePathPNG, newImCV2)
     convertIm = Image.open(savePathPNG)
     convertIm.save(savePathTIF, "TIFF")

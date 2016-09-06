@@ -41,6 +41,7 @@ side_ScaleFactor_eqM = 0.00154 # slope for equation as calculated by scaling fac
 side_ScaleFactor_eqB = 0.0003111 # offset for equation as calculated by scaling factor calculator
 side_ScaleFactor_intersectX = 466 # using ruler placed flat, also see CameraDist_in
 CameraDist_in = 1.65625 # distance in inches that camera is out of image
+CameraDist_angle = 76.4 # angle at which side camera is pointing into top image in degrees
 #ScaleFactorSide = 0.00339 # cm/pixel 
 # end size calibrate
 
@@ -169,7 +170,7 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 	# end side calculations
 
 	#ScaleFactorSide now calculated per seed
-	ScaleFactorSide = calcSideScaleFactor(topCenterPoint_norotate,200,200,lengthScaleFactorTop,side_ScaleFactor_eqM,side_ScaleFactor_eqB,side_ScaleFactor_intersectX,CameraDist_in)
+	ScaleFactorSide = calcSideScaleFactor(topCenterPoint_norotate,200,200,lengthScaleFactorTop,side_ScaleFactor_eqM,side_ScaleFactor_eqB,side_ScaleFactor_intersectX,CameraDist_in,CameraDist_angle,topRotateAngle_norotate,topLength)
 	print('scaleFactorSide = ' + str(ScaleFactorSide))
 	# end scaleFactorSide calculations
 

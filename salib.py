@@ -439,7 +439,7 @@ def ellipseAxes(numpyTop,numpySide):
 
 
 
-def calcSideScaleFactor(centerpoint,cropleft,croptop,topScale,eqM,eqB,xIntersect,distCamera_in):
+def calcSideScaleFactor(centerpoint,cropleft,croptop,topScale,eqM,eqB,xIntersect,distCamera_in,distCamera_angle,seedAngle_deg,seedLength_top):
     # set side scale factor (cm/pixel) based on center point
     # can work with a preexisting crop on the images (given as variables)
     # 
@@ -452,26 +452,56 @@ def calcSideScaleFactor(centerpoint,cropleft,croptop,topScale,eqM,eqB,xIntersect
     # eqB - "distance from camera equation" offset
     # xIntersect - in pixels, where ruler exits bottom of image, intersect point in x (y=bottom row)
     # distCamera_in - distance camera is from bottom of frame
+    # distCamera_angle - angle at which the distCamera was measured
+    # seedAngle_deg - calculated seed angle in degrees (0 being lengthwise infront of side camera, 90 facing)
+    # seedLength_top - calculated seed length from top image in pixels
+    # 
     #
     # returns:
     # calculates sideScaleFactor for use in samain script
 
+    distCamera_angle_rad = distCamera_angle*(math.pi/180) # convert to radians for math fncs
+
     # given x and y in inches that the side camera is out of the topImage shot
     distCamera_cm = 2.54*distCamera_in
     distCamera = distCamera_cm/topScale
+    distCamera_y_component = distCamera*math.sin(distCamera_angle_rad)
+
     # use centerpoint to calculate the distance in pixels from the lens itself
     ximgsize = 1920-cropleft
     yimgsize = 1080-croptop
 
     X = abs(centerpoint[0]-xIntersect)
     Y = abs(yimgsize-centerpoint[1])
-    distance = distCamera + math.sqrt((X)**2+(Y)**2)
-    distance_cm = distance*topScale
-    distance_in = distance_cm/2.54
-    print('distance_in = '+str(distance_in))
+    y_x = Y*1.0/X
+    #print('y_x = '+str(y_x))
+
+    phi = math.atan(y_x)
+    #print('phi = ' + str(phi))
+    a = math.sqrt((X)**2+(Y)**2)
+
+    #print('a = '+str(a))
+
+    b_sqrd = (a)**2 + (distCamera_y_component)**2 - (2*a*distCamera_y_component*(math.cos(abs(phi)+(math.pi)/2)))
+    b = math.sqrt(b_sqrd) # pixels
+    b_cm = b*topScale # centimeters
+    b_in = b_cm/2.54 # inches
+
+    #print('b pixels = '+str(b))
+
+    # for seeds that are at extreme angles, the optics cause the widest part to be closer to the camera
+    # the following is for seeds where this is the case, as it accounts for the optical skew of a seed
+    # with its length perpendicular to the camera lens
+    if abs(seedAngle_deg) >= 45:
+        lengthCorrFactor = seedLength_top/4
+        lengthCorrFactor_cm = lengthCorrFactor*topScale # centimeters
+        lengthCorrFactor_in = lengthCorrFactor_cm/2.54
+        print('lengthCorrFactor_in = ' + str(lengthCorrFactor_in))
+        b_in = b_in+lengthCorrFactor_in
 
     # given distance from side camera, use eqM and eqB (solved from topScale image)
-    scalefactor = distance_in*eqM+eqB
+    print('b_in = '+str(b_in))
+    scalefactor = b_in*eqM+eqB
 
     return scalefactor
 

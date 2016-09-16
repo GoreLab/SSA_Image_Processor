@@ -496,11 +496,10 @@ def calcSideScaleFactor(centerpoint,cropleft,croptop,topScale,eqM,eqB,xIntersect
         lengthCorrFactor = seedLength_top/4
         lengthCorrFactor_cm = lengthCorrFactor*topScale # centimeters
         lengthCorrFactor_in = lengthCorrFactor_cm/2.54
-        print('lengthCorrFactor_in = ' + str(lengthCorrFactor_in))
+    #    print('lengthCorrFactor_in = ' + str(lengthCorrFactor_in))
         b_in = b_in+lengthCorrFactor_in
 
     # given distance from side camera, use eqM and eqB (solved from topScale image)
-    print('b_in = '+str(b_in))
     scalefactor = b_in*eqM+eqB
 
     return scalefactor

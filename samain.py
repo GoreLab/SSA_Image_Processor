@@ -56,7 +56,7 @@ else:
 csvfile = open(workingDir + '_processed.csv', 'w')
 fieldnames = ['number','file path','length (cm)','width (cm)','area (pixels)',
 				'color value (R)','color value (G)','color value (B)',
-				'height (cm)','volume (cm3)','angle (degrees)','error']
+				'height (cm)','volume (cm3)','angle (degrees)','error','topX','topY']
 writerObj = csv.DictWriter(csvfile, fieldnames=fieldnames)
 writerObj.writeheader()
 # BEGIN LOOP
@@ -91,6 +91,8 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 	topWidth_norotate = topImgVariables['width']
 	topRotateAngle_norotate = topImgVariables['angle']
 	topCenterPoint_norotate = topImgVariables['center']
+	topX = topCenterPoint_norotate[0]
+	topY = topCenterPoint_norotate[1]
 	topArea_norotate = topImgVariables['area']
 	topLargestIndex_norotate = topImgVariables['largestIndex'] 
 	topContours_norotate = topImgVariables['contours']
@@ -122,6 +124,8 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 	#cv2.waitKey(0)
 	#cv2.destroyWindow(str(fileName))
 	if debugMode:
+		print('topX = ' + str(topX))
+		print('topY = ' + str(topY))
 		unused, debugThreshTop = cv2.threshold(imageCroppedBWRotated,threshTopVal,255,cv2.THRESH_BINARY)
 		debugThreshTop = erodeAndDilate(debugThreshTop,np.ones((5,5),np.uint8),1)
 		cv2.imshow(str(fileName),debugThreshTop)
@@ -158,7 +162,7 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 
 
 	# calculate length, width (height because side), area, and debug variables
-	threshSideVal = 90
+	threshSideVal = 30
 	sideImgVariables = findLengthWidth(imageCroppedBW_Side,threshSideVal)
 	sideLength = sideImgVariables['length']
 	sideWidth = sideImgVariables['width']
@@ -171,7 +175,7 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 
 	#ScaleFactorSide now calculated per seed
 	ScaleFactorSide = calcSideScaleFactor(topCenterPoint_norotate,200,200,lengthScaleFactorTop,side_ScaleFactor_eqM,side_ScaleFactor_eqB,side_ScaleFactor_intersectX,CameraDist_in,CameraDist_angle,topRotateAngle_norotate,topLength)
-	print('scaleFactorSide = ' + str(ScaleFactorSide))
+	#print('scaleFactorSide = ' + str(ScaleFactorSide))
 	# end scaleFactorSide calculations
 
 
@@ -184,10 +188,19 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 		cv2.waitKey(0)
 		cv2.destroyWindow(str(fileName))
 		debugContourSide = imageCroppedColor_Side
+		# draw rectangle
+		# create top image rectangle containing seed, and find midpoints
+		bounds = cv2.minAreaRect(sideContours[sideLargestIndex])
+		# box used for finding midpoints and drawing
+		box = cv2.cv.BoxPoints(bounds) # note cv2.cv.BoxPoints(rect) will be removed in openCV 3
+		#cv2.boxPoints(bounds) - if openCV 3
+		box = np.int0(box)
+		cv2.drawContours(debugContourSide,[box],0,(0,0,255),1)
 		cv2.drawContours(debugContourSide,sideContours,sideLargestIndex,(0,0,255),3)
 		cv2.imshow(str(fileName),debugContourSide)
 		cv2.waitKey(0)
 		cv2.destroyWindow(str(fileName))
+
 
 
 	# check for errors
@@ -319,7 +332,9 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 	heightText = 'height (cm) = ' + str(heightcm)
 	volumeText = 'volume (cm3) = ' + str(volume)
 	angleText = 'angle (degrees) = ' + str(topRotateAngle_norotate)
-	errorText = error
+	errorText = 'error = ' + error
+	topxText = 'topXpos (pixel) = ' + str(topX)
+	topyText = 'topYpos (pixel) = ' + str(topY)
 	cv2.putText(debugImage,fileName,(10,20),cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
 	cv2.putText(debugImage,lengthText,(10,40),cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
 	cv2.putText(debugImage,widthText,(10,60),cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
@@ -329,6 +344,8 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 	cv2.putText(debugImage,volumeText,(10,140),cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
 	cv2.putText(debugImage,angleText,(10,160),cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
 	cv2.putText(debugImage,errorText,(10,180),cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
+	cv2.putText(debugImage,topxText,(10,200),cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
+	cv2.putText(debugImage,topyText,(10,220),cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
 
 	if debugMode:
 		cv2.imshow(str(fileName),debugImage)
@@ -340,13 +357,13 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 						'area (pixels)':str(topArea_norotate),'color value (R)':str(redAverage),
 						'color value (G)':str(greenAverage),'color value (B)':str(blueAverage),
 						'height (cm)':str(heightcm),'volume (cm3)':str(volume),
-						'angle (degrees)':str(topRotateAngle_norotate),'error':error})
+						'angle (degrees)':str(topRotateAngle_norotate),'error':error,'topX':topX,'topY':topY})
 	print('processed: ' + fileName + '  [' + str(x) + ']')
 	x += 1
 csvfile.close()
 # !!!!!END LOOP!!!!!
 print('>>> Done: data saved in ' + workingDir + '_processed.csv')
-exit() # purposeful crash, this can be changed when this is turned into a MAIN function
+exit() # purposeful, this can be changed if this is turned into a MAIN function
 
 # write debug output and show image
 #cv2.imwrite('debug.bmp',debugImage)

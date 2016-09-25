@@ -61,7 +61,7 @@ writerObj = csv.DictWriter(csvfile, fieldnames=fieldnames)
 writerObj.writeheader()
 # BEGIN LOOP
 print('Processing directory: ' + workingDir)
-x = 0
+x = 1
 for fileName in glob.glob(workingDir + '/TopImage*'):
 	error = ''
 
@@ -119,20 +119,16 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 	topContours = topImgVariables['contours']
 	# end top calculations
 
-	# debug
-	#cv2.imshow(str(fileName),imageCroppedBWRotated)
-	#cv2.waitKey(0)
-	#cv2.destroyWindow(str(fileName))
 	if debugMode:
-		print('topX = ' + str(topX))
-		print('topY = ' + str(topY))
+		#print('topX = ' + str(topX))
+		#print('topY = ' + str(topY))
 		unused, debugThreshTop = cv2.threshold(imageCroppedBWRotated,threshTopVal,255,cv2.THRESH_BINARY)
 		debugThreshTop = erodeAndDilate(debugThreshTop,np.ones((5,5),np.uint8),1)
 		cv2.imshow(str(fileName),debugThreshTop)
 		cv2.waitKey(0)
 		cv2.destroyWindow(str(fileName))
 		debugContourTop = imageCroppedColor
-		cv2.drawContours(debugContourTop,topContours_norotate,topLargestIndex_norotate,(0,0,255),3)
+		cv2.drawContours(debugContourTop,topContours_norotate,topLargestIndex_norotate,(0,0,255),1)
 		cv2.imshow(str(fileName),debugContourTop)
 		cv2.waitKey(0)
 		cv2.destroyWindow(str(fileName))
@@ -196,7 +192,7 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 		#cv2.boxPoints(bounds) - if openCV 3
 		box = np.int0(box)
 		cv2.drawContours(debugContourSide,[box],0,(0,0,255),1)
-		cv2.drawContours(debugContourSide,sideContours,sideLargestIndex,(0,0,255),3)
+		cv2.drawContours(debugContourSide,sideContours,sideLargestIndex,(0,0,255),1)
 		cv2.imshow(str(fileName),debugContourSide)
 		cv2.waitKey(0)
 		cv2.destroyWindow(str(fileName))
@@ -235,8 +231,9 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 			imageRotated_Side = rotateImage(imageCroppedBW_Side,sideRotateAngle,sideCenterPoint)
 			sideImgVariables_forVol = findLengthWidth(imageRotated_Side,threshSideVal)
 		else:
+			imageRotated_Side = imageCroppedBW_Side
 			sideImgVariables_forVol = sideImgVariables
-		volume = findVolume(imageCroppedBWRotated,imageCroppedBW_Side,topImgVariables,sideImgVariables_forVol,threshSideVal,lengthScaleFactorTop,ScaleFactorSide)
+		volume = findVolume(imageCroppedBWRotated,imageRotated_Side,topImgVariables,sideImgVariables_forVol,threshSideVal,lengthScaleFactorTop,ScaleFactorSide)
 		#print('volume = ' + str(volume)) # debug output
 		# running volume on poorly formed numpy arrays is a bad idea
 	else:
@@ -247,7 +244,6 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 	# uses top images only because color correction was performed
 	# goes through every pixel in array and find average value of each channel
 	# !!!! note values are B G R !!!!
-
 	# Initialize empty list
 	lst_intensities = []
 	# Create a mask image that contains the contour filled in
@@ -260,28 +256,52 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 	#cv2.destroyWindow('debugOutput_mask')
 
 	# Access the image pixels and create a 1D numpy array then add to list
-	pts = np.where(cimg == 255)
-	# (array([305, 305, 305, ..., 426, 426, 426]), array([507, 508, 509, ..., 707, 711, 712]))
+	pts = np.where(cimg == 255) # ex: (array([305, 305, 305, ..., 426, 426, 426]), array([507, 508, 509, ..., 707, 711, 712]))
 	i = 0
 	while i < len(pts[0]):
 		lst_intensities.append(imageCroppedColor[pts[0][i], pts[1][i]])
 		i += 1
-
+	# create a dictionary of color count that will be printed later
+	color_dict = {}
+	# loop and color averaging variables
 	blue = 0
 	green = 0
 	red = 0
 	i = 0
 	pixelcount = 0
 	while i < len(lst_intensities):
-		# remove all white reflections 240, 240, 240
-		# keep track of how many pixels actually get analyzed
+		# for every pixel of every color, we keep track of count
+		b_temp = lst_intensities[i][0]
+		g_temp = lst_intensities[i][1]
+		r_temp = lst_intensities[i][2]
 		# use this for averaging
-		if lst_intensities[i][0] < 240 and lst_intensities[i][1] < 240 and lst_intensities[i][2] < 240:
-			blue += lst_intensities[i][0]
-			green += lst_intensities[i][1]
-			red += lst_intensities[i][2]
-			pixelcount += 1
+		# can add a filter here
+		blue += b_temp
+		green += g_temp
+		red += r_temp
+		pixelcount += 1 # keep track of how many pixels actually get analyzed
+		rgb_key = (r_temp,g_temp,b_temp) # create a dictionary key
+		if rgb_key in color_dict:
+			color_dict[rgb_key] += 1
+		else:
+			color_dict[rgb_key] = 1
 		i += 1
+	# end loop over all colored pixels and print to a csv file
+	# create a csv file to store pixel r g b count data into
+	# we do this for each image so we can investigate individual pixels later
+	slash_index = fileName.find('/') # hopefully this is always the directory above a SeedImages directory
+	color_dir_name = fileName[:slash_index+1]
+	color_file_number = str(x).zfill(3)
+	csvfile_colors = open(color_dir_name + 'TopImage_' + color_file_number + '_rgb.csv', 'w')
+	fieldnames_colors = ['r','g','b','count']
+	writerObj2 = csv.DictWriter(csvfile_colors, fieldnames=fieldnames_colors)
+	writerObj2.writeheader()
+	writerObj2.writerow({'r':'','g':'','b':'total count:','count':str(pixelcount)}) # print total count
+	for key, value in color_dict.items():
+		if value > 2:
+			writerObj2.writerow({'r':str(key[0]),'g':str(key[1]),'b':str(key[2]),'count':str(value)})
+	csvfile_colors.close() # end file writing
+	# save average color
 	if pixelcount > 0:
 		blueAverage = blue/pixelcount
 		greenAverage = green/pixelcount
@@ -297,7 +317,7 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 	widthcm = topWidth*widthScaleFactorTop
 	heightcm = sideWidth*ScaleFactorSide
 	# end scale
-
+	
 	# create debug output
 	debugImage = imageCroppedColor
 	# draw contour trace
@@ -310,17 +330,7 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 	#cv2.boxPoints(bounds) - if openCV 3
 	box = np.int0(box)
 	cv2.drawContours(debugImage,[box],0,(0,0,255),1)
-	# draw line trace
-	#cv2.line(debugImage,B,D,(0,0,255),1)
-	#cv2.line(debugImage,A,C,(0,0,255),1)
-	#cv2.circle(debugImage,A,2,(0,255,0),-1)
-	#cv2.putText(debugImage,'A',A,cv2.FONT_HERSHEY_SIMPLEX,.5,(0,255,0))
-	#cv2.circle(debugImage,B,2,(0,255,0),-1)
-	#cv2.putText(debugImage,'B',B,cv2.FONT_HERSHEY_SIMPLEX,.5,(0,255,0))
-	#cv2.circle(debugImage,C,2,(0,255,0),-1)
-	#cv2.putText(debugImage,'C',C,cv2.FONT_HERSHEY_SIMPLEX,.5,(0,255,0))
-	#cv2.circle(debugImage,D,2,(0,255,0),-1)
-	#cv2.putText(debugImage,'D',D,cv2.FONT_HERSHEY_SIMPLEX,.5,(0,255,0))
+	# draw center
 	cv2.circle(debugImage,topCenterPoint_norotate,2,(0,255,0),-1)
 	cv2.putText(debugImage,'ctr',topCenterPoint_norotate,cv2.FONT_HERSHEY_SIMPLEX,.5,(0,255,0))
 
@@ -362,7 +372,7 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 	x += 1
 csvfile.close()
 # !!!!!END LOOP!!!!!
-print('>>> Done: data saved in ' + workingDir + '_processed.csv')
+print('>>> Done: data saved in ' + color_dir_name)
 exit() # purposeful, this can be changed if this is turned into a MAIN function
 
 # write debug output and show image

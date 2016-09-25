@@ -75,12 +75,12 @@ def findMaxSizeBounds(imgBW,thrVal):
 
 def findLengthWidth(workingImg,thrVal):
     # find seed contour - at a certain index position in the list of contours found
+    # 
     # workingImg - image with seed to find length and width of
     # thrVal - threshold value to be used
     #
     # returns a list of seed info (length, width, angle, area, center point, index of largest contour and contour list)
     # note the error output  is all 1
-
 
     seedBounds = findMaxSizeBounds(workingImg,thrVal)
     largestIndex = seedBounds['seedIndex']
@@ -231,8 +231,12 @@ def contourHitsEdge(index,contourlist,image):
 def erodeAndDilate(image, kernel, timesRepeated):
     # erode: all the pixels near boundary will be discarded depending upon the size of kernel
     # dilate: pixels at a boundary will be dilated (opposite of erosion)
-
-    # example kernels
+    #
+    # image - input image
+    # kernel - filter shape, see example below
+    # timesRepeated - number of times to repeat each action before moving to the next
+    #
+    # example kernels:
     # Rectangular:
     # np.ones((5,5),np.uint8)
     #
@@ -243,6 +247,9 @@ def erodeAndDilate(image, kernel, timesRepeated):
     #   [1, 1, 1, 1, 1],
     #   [1, 1, 1, 1, 1],
     #   [0, 0, 1, 0, 0]], dtype=uint8)
+    #
+    # returns the image after being eroded and dilated
+
     image1 = cv2.dilate(image, kernel, iterations = timesRepeated)
     image2 = cv2.erode(image1, kernel, iterations = timesRepeated)
     return image2
@@ -252,7 +259,7 @@ def findVolume(topimage,sideimage,topImgVariables,sideImgVariables,threshSideVal
     # algorithm: by using known seed paramters (angle,length,width) this
     # approximates an ellipse as the seed shape and
     # uses Riemann sums to give total value
-    # V = sum( z , pi * x(z) * y(z) * dz )
+    # V = sum( z , pi * x(z)/2 * y(z)/2 * dz )
     # where:
     # pi*a*b is the equation for area of an ellipse
     # z is length of seed in pixels (needs to be equal on both images)
@@ -270,7 +277,7 @@ def findVolume(topimage,sideimage,topImgVariables,sideImgVariables,threshSideVal
     #
     # returns the volume in cm^3
 
-    #topImgVariables
+    # top image variables
     topLength = topImgVariables['length']
     topWidth = topImgVariables['width']
     topRotateAngle = topImgVariables['angle']
@@ -279,10 +286,8 @@ def findVolume(topimage,sideimage,topImgVariables,sideImgVariables,threshSideVal
     topLargestIndex = topImgVariables['largestIndex'] 
     topContours = topImgVariables['contours']
 
-    #sideImgVariables
+    # side image variables
     sideLength = sideImgVariables['length']
-    sideWidth = sideImgVariables['width']
-    #sideCenterPoint = sideImgVariables['center']
 
     # once we have length of top image seed and length of side image,
     # figure out scaling factor for side image sideLength*x=topLength where x = topLength/sideLength
@@ -292,18 +297,10 @@ def findVolume(topimage,sideimage,topImgVariables,sideImgVariables,threshSideVal
     sideResizedImage = cv2.resize(sideimage,None,fx=vol_length_SideScaleFactor,fy=1)
     sideResizedImgVariables = findLengthWidth(sideResizedImage,threshSideVal)
     
+    # side image variables post-resize
     sideResizedLargestIndex = sideResizedImgVariables['largestIndex'] 
     sideResizedContours = sideResizedImgVariables['contours']
     sideResizedCenterPoint = sideResizedImgVariables['center']
-
-    # debug check that the resize worked properly
-    #print('sideimg angle = ' + str(sideResizedImgVariables['angle']))
-    #print('sideimg resized length = ' + str(sideResizedImgVariables['length']))
-    #print('sideimg resized width = ' + str(sideResizedImgVariables['width']))
-    #print('topimg angle = ' + str(topRotateAngle))
-    #print('topimg length = ' + str(topLength))
-    #print('topimg width = ' + str(topWidth))
-
 
     # Create two mask images that contain the contours filled in - one for top one for side
     topimg = np.zeros_like(topimage)
@@ -320,12 +317,6 @@ def findVolume(topimage,sideimage,topImgVariables,sideImgVariables,threshSideVal
     # Access the image pixels and create a 1D numpy array then add to list
     topPts = np.where(topimg == 255)
     sidePts = np.where(sideimg == 255)
-    #cv2.imshow('debug',topimg)
-    #cv2.waitKey(0)
-    #cv2.destroyWindow('debug')
-    #cv2.imshow('debug side',sideimg)
-    #cv2.waitKey(0)
-    #cv2.destroyWindow('debug side')
     # (array([305, 305, 305, ..., 426, 426, 426]), array([507, 508, 509, ..., 707, 711, 712]))
 
     axesMeasurements = ellipseAxes(topPts,sidePts)
@@ -335,7 +326,7 @@ def findVolume(topimage,sideimage,topImgVariables,sideImgVariables,threshSideVal
 
     dz = topScale # dz is ellipse width, we rescaled to use the topimage as the standard
     i = 0
-    summation = 0
+    summation = 0.0
     integrate_over = 0
 
     # trying to use all available integration points
@@ -343,16 +334,17 @@ def findVolume(topimage,sideimage,topImgVariables,sideImgVariables,threshSideVal
     # so we need to drop a shell of negligible size
     lenTop = len(axesMeasurements[0])
     lenSide = len(axesMeasurements[1])
+
     if lenSide < lenTop:
         integrate_over = lenSide
     else:
         integrate_over = lenTop
 
-
     while i < integrate_over:
-        # scaling factors go in the line below
-        ellipseArea = math.pi*(axesMeasurements[0][i]*topScale)*(axesMeasurements[1][i]*sideScale/vol_length_SideScaleFactor)
-        summation += ellipseArea*dz
+        aaxis = axesMeasurements[0][i] # top diameter in pixels
+        baxis = axesMeasurements[1][i] # side diameter in pixels
+        ellipseArea = math.pi*(aaxis/2)*(baxis/2)*topScale*sideScale # cm^2
+        summation += ellipseArea*dz # now cm^3
         i += 1
 
     return summation
@@ -361,17 +353,9 @@ def ellipseAxes(numpyTop,numpySide):
     # Given two numpy arrays, solves for the pixel length of the axes of the ellipses.
     # this is used in the actual calculation step of the volume function
     #
-    # inputs
-    # numpy arrays representing seed from the top
-    # numpy arrays representing seed from the side
-    # example:
-    # (array([305, 305, 305, ..., 426, 426, 426]), array([507, 508, 509, ..., 707, 711, 712]))
-    # or (array([656, 656, 656, ..., 732, 732, 733]), array([1073, 1074, 1075, ..., 1081, 1082, 1078]))
-    # output
-    # list of x(z) values (ellipse a axis) - in pixels
-    # list of y(z) values (ellipse b axis) - in pixels
-
-    # start from the same side of the seed (verify this) and determine the width at that point
+    # algorithm:
+    #
+    # start from the same side of the seed and determine the width at that point
     #   TOP:
     # - at start of x: record 507... end of x record 509
     # - difference 509-507 = height[0]
@@ -381,18 +365,20 @@ def ellipseAxes(numpyTop,numpySide):
     #   SIDE:
     # - at start of x: record 100... end of x record 103
     # - see above
+    #
+    # numpyTop - numpy arrays representing seed from the top
+    # numpySide - numpy arrays representing seed from the side
+    # example:
+    # (array([305, 305, 305, ..., 426, 426, 426]), array([507, 508, 509, ..., 707, 711, 712]))
+    # or (array([656, 656, 656, ..., 732, 732, 733]), array([1073, 1074, 1075, ..., 1081, 1082, 1078]))
+    #
+    # 
+    # returns a tuple as (top,side) containing the following:
+    # a list of x(z) values (ellipse a axis) - in pixels
+    # a list of y(z) values (ellipse b axis) - in pixels
 
     x = 0
     y = 1
-
-    # debug outputs
-    #print('TOPxlen = ' + str(len(numpyTop[x])))
-    #print('TOPylen = ' + str(len(numpyTop[y])))
-    #print('SIDExlen = ' + str(len(numpySide[x])))
-    #print('SIDEylen = ' + str(len(numpySide[y])))
-    #np.set_printoptions(threshold=np.inf) #show the whole numpy array (CAN BE HUGE)
-    #print(numpyTop)
-    #print(numpySide)
 
     i = 0
     n = 0
@@ -434,7 +420,6 @@ def ellipseAxes(numpyTop,numpySide):
             prevSidePt = numpySide[x][i]
         i += 1
 
-
     return (top,side)
 
 
@@ -443,7 +428,6 @@ def calcSideScaleFactor(centerpoint,cropleft,croptop,topScale,eqM,eqB,xIntersect
     # set side scale factor (cm/pixel) based on center point
     # can work with a preexisting crop on the images (given as variables)
     # 
-    # args:
     # centerpoint - (x,y) of seed center point
     # cropleft - amount left side was cropped by, a modification would be made if right crop
     # croptop - amount top was cropped by, a modification would be made if bottom crop
@@ -456,9 +440,7 @@ def calcSideScaleFactor(centerpoint,cropleft,croptop,topScale,eqM,eqB,xIntersect
     # seedAngle_deg - calculated seed angle in degrees (0 being lengthwise infront of side camera, 90 facing)
     # seedLength_top - calculated seed length from top image in pixels
     # 
-    #
-    # returns:
-    # calculates sideScaleFactor for use in samain script
+    # returns the calculated sideScaleFactor for use in samain script
 
     distCamera_angle_rad = distCamera_angle*(math.pi/180) # convert to radians for math fncs
 

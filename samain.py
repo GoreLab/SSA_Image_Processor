@@ -1,12 +1,19 @@
-# samain.py
-#
-# author:
-# Kevin Kreher
-# KMK279@cornell.edu
-#
-# compatibility Python version 2.7.10 + OpenCV version 2.4.12
-# there are notes in here for porting 
-# to Python 3 or OpenCV 3 (findContour breaks, etc.)
+""" samain.py - Script for analyzing seed images.
+
+This script takes a file directory containing images of seeds as an
+input and uses the images to produce output csv files containing data
+such as color, volume, and seed measurements. Note that the
+measurements require calibration data to be converted to real
+world units (typically centimeters or centimeters cubed). Also note
+that the pre-processing must be completed before using this script.
+The directory structure and steps for inputting calibration data can2
+be found with the documentation on Github. Developed and tested with
+Python 2.7.x and OpenCV 2.4.x.
+
+Written by Kevin Kreher (kmk279@cornell.edu).
+"""
+
+__author__ = 'Kevin Kreher'
 
 from salib import *
 import numpy as np
@@ -16,292 +23,241 @@ import math
 import csv
 import string
 
-# note: pre-process first
-# correct color with Picasa or similar
-# remove lens distortion if possible (negligible for seeds falling into center of FOV)
-# Run through Guo's algorithm to remove background
+# These variables are responsible for converting from pixel length
+#    measurements made by the script to real world distances.
+#    Units are indicated by inline comments. Specifics are explained
+#    below and in documentation:
+#    top_ScaleFactor - Measured manually at center of top images.
+#    side_ScaleFactor_eqM - Using the Scaling Factor Calculator (see
+#                               documentation) provides the user with
+#                               two output variables describing a
+#                               linear equation with M being the slope
+#                               and B being the y-intercept.
+#    side_ScaleFactor_eqB - See side_ScaleFactor_eqM.
+#    side_ScaleFactor_intersectX - The x position where a line coming
+#                                      directly from the center of the
+#                                      side camera first intersects the
+#                                      top image. See documentation.
+#    top_CameraDist_in - Distance in inches that side camera center
+#                            line is out of the top image. See
+#                            documentation.
+#    top_CameraDist_angle - Angle in degrees as measured from side
+#                               camera center line to horizontal
+#                               (x-axis) in the top image. See
+#                               documentation
+top_ScaleFactor = 0.003118 			# centimeters/pixel
+top_CameraDist_in = 1.65625 		# inches
+top_CameraDist_angle = 76.4 		# degrees
+side_ScaleFactor_eqM = 0.00154
+side_ScaleFactor_eqB = 0.0003111
+side_ScaleFactor_intersectX = 466
 
-# debug mode?
-debugMode = input('debug mode? (1 = yes, 0 = no): ')
-# end debug mode check
+# DebugMode shows the image at each step, not recommended when
+#    many images need to be processed.
+debugMode = input('Enter debug mode? (1 = yes, 0 = no): ')
 
-# calibrate pixel size to centimeters
-# we don't repeat this for each image
-# pixelSizeCalibrate is an attempt at automating this
-# but it should not change in most cases, if it does change, the manual calibration
-# method will work as well
-#bgModelLength = 4.5 # change this - in cm
-#bgModelWidth = 3 # change this - in cm
-#fileName = 'calibration/scale02.bmp'
-#imageScale = cv2.imread(fileName,0)
-#lengthScaleFactorTop, widthScaleFactorTop = pixelSizeCalibrate(imageScale,150,bgModelLength,bgModelWidth)
-lengthScaleFactorTop = 0.003118 # cm/pixel at (set distance) from lense
-widthScaleFactorTop = lengthScaleFactorTop # cm/pixel
-side_ScaleFactor_eqM = 0.00154 # slope for equation as calculated by scaling factor calculator
-side_ScaleFactor_eqB = 0.0003111 # offset for equation as calculated by scaling factor calculator
-side_ScaleFactor_intersectX = 466 # using ruler placed flat, also see CameraDist_in
-CameraDist_in = 1.65625 # distance in inches that camera is out of image
-CameraDist_angle = 76.4 # angle at which side camera is pointing into top image in degrees
-#ScaleFactorSide = 0.00339 # cm/pixel 
-# end size calibrate
-
-# open the files and process each one
-if debugMode:
-	print('make sure there is a SeedImages_debug directory with the inteded images')
-	workingDir = 'SeedImages_debug'
-else:
-	workingDir = raw_input('Directory name (ex. test12801/SeedImages)?: ')
-	# this was deprecated in Python 3.0, will need to be changed to input, not raw_input
-
-csvfile = open(workingDir + '_processed.csv', 'w')
+workingDir = raw_input('Directory name (ex. test12801/SeedImages)?: ')
+csvfile = open(workingDir + '_processed.csv', 'w') # CSV file for data.
 fieldnames = ['number','file path','length (cm)','width (cm)','area (pixels)',
-				'color value (R)','color value (G)','color value (B)',
-				'height (cm)','volume (cm3)','angle (degrees)','error','topX','topY']
+              'color value (R)','color value (G)','color value (B)',
+			  'height (cm)','volume (cm3)','angle (degrees)','error',
+			  'topX','topY']
 writerObj = csv.DictWriter(csvfile, fieldnames=fieldnames)
 writerObj.writeheader()
-# BEGIN LOOP
 print('Processing directory: ' + workingDir)
-x = 1
-for fileName in glob.glob(workingDir + '/TopImage*'):
-	error = ''
+x = 1 # Track number of seeds processed.
+for top_fileName in glob.glob(workingDir + '/TopImage*'):
+	# Find the side image filename.
+	side_fileName = string.replace(top_fileName,'TopImage','SideImage')
+	# Below is a hack for a problem introduced by the pre-processor.
+	side_fileName = string.replace(side_fileName,'-27-','-26-')
+	print('REMOVE THIS!' + ' side_fileName = ' + side_fileName)
 
-	# navigate to files and open
-	imageColor = cv2.imread(fileName,1) # three channel image (B,G,R)
-	imageBW = cv2.imread(fileName,0) # BW
-	# end navigate
+	# Import top and side images.
+	top_imageColor = cv2.imread(top_fileName,1) # B,G,R color channels
+	top_imageBW = cv2.imread(top_fileName,0) # BW
+	side_imageColor = cv2.imread(side_fileName,1) # B,G,R color channels
+	side_imageBW = cv2.imread(side_fileName,0) # BW
+    # Pre-processing now crops, this was left in case this changes.
+	top_imageBW_crop = top_imageBW
+	top_imageColor_crop = top_imageColor
+	side_imageBW_crop = side_imageBW
+	side_imageColor_crop = side_imageColor
 
-	# debug
-	#cv2.imshow(str(fileName),imageColor)
-	#cv2.waitKey(0)
-	#cv2.destroyWindow(str(fileName))
+	# Calculate the length, width, etc. of the top image seed.
+	top_threshValue = 60
+	top_Variables_noRotate = findLengthWidth(top_imageBW_crop,top_threshValue)
+	top_Length_noRotate = top_Variables_noRotate['length']
+	top_Width_noRotate = top_Variables_noRotate['width']
+	top_Angle_noRotate = top_Variables_noRotate['angle']
+	top_centerPoint_noRotate = top_Variables_noRotate['center']
+	topX = top_centerPoint_noRotate[0]
+	topY = top_centerPoint_noRotate[1]
+	top_Area_noRotate = top_Variables_noRotate['area']
+	top_largestIndex_noRotate = top_Variables_noRotate['largestIndex'] 
+	top_Contours_noRotate = top_Variables_noRotate['contours']
 
-	# crop image
-	#cropystart = 150
-	#cropyend = 950
-	#cropxstart = 150
-	#cropxend = 1650
-	imageCroppedBW = imageBW#[cropystart:cropyend,cropxstart:cropxend] # NOTE: its image[y: y + h, x: x + w]
-	imageCroppedColor = imageColor#[cropystart:cropyend,cropxstart:cropxend]
-	# end crop image
-
-	# calculate length, width, area, and debug variables
-	threshTopVal = 70
-	topImgVariables = findLengthWidth(imageCroppedBW,threshTopVal)
-	topLength_norotate = topImgVariables['length']
-	topWidth_norotate = topImgVariables['width']
-	topRotateAngle_norotate = topImgVariables['angle']
-	topCenterPoint_norotate = topImgVariables['center']
-	topX = topCenterPoint_norotate[0]
-	topY = topCenterPoint_norotate[1]
-	topArea_norotate = topImgVariables['area']
-	topLargestIndex_norotate = topImgVariables['largestIndex'] 
-	topContours_norotate = topImgVariables['contours']
-
-	# rotate the top seed image so its length is along the x-axis
-	if abs(topRotateAngle_norotate) > 5:
-		imageCroppedBWRotated = rotateImage(imageCroppedBW,topRotateAngle_norotate,topCenterPoint_norotate)
+	# If the seed is greatly angled the next step rotates the seed
+	#    such that its length is parallel to the x-axis and re-
+	#    calculates the variables found above (length, width, etc.).
+	if abs(top_Angle_noRotate) > 5:
+		top_imageBW_crop_rotated = rotateImage(top_imageBW_crop,
+			                                   top_Angle_noRotate,
+			                                   top_centerPoint_noRotate)
 	else:
-		imageCroppedBWRotated = imageCroppedBW
-		# angle is OK, fill in the variables to continue working
-	# useful for complex volume finding alogirthm
-	# end rotate
-
-	#recalculate length,width,area,debug variables
-	topImgVariables = findLengthWidth(imageCroppedBWRotated,threshTopVal)
-	topLength = topImgVariables['length']
-	topWidth = topImgVariables['width']
-	topRotateAngle = topImgVariables['angle']
-	#print('angle = ' + str(topRotateAngle))
-	#print('angle_norotate = ' + str(topRotateAngle_norotate))
-	topCenterPoint = topImgVariables['center']
-	topArea = topImgVariables['area']
-	topLargestIndex = topImgVariables['largestIndex'] 
-	topContours = topImgVariables['contours']
-	# end top calculations
+		top_imageBW_crop_rotated = top_imageBW_crop
+    
+	top_Variables_rotated = findLengthWidth(top_imageBW_crop_rotated,
+		                                    top_threshValue)
+	top_Length_rotated = top_Variables_rotated['length']
+	top_Width_rotated = top_Variables_rotated['width']
+	top_Angle_rotated = top_Variables_rotated['angle']
+	top_centerPoint_rotated = top_Variables_rotated['center']
+	top_Area_rotated = top_Variables_rotated['area']
+	top_largestIndex_rotated = top_Variables_rotated['largestIndex'] 
+	top_Contours_rotated = top_Variables_rotated['contours']
 
 	if debugMode:
-		#print('topX = ' + str(topX))
-		#print('topY = ' + str(topY))
-		unused, debugThreshTop = cv2.threshold(imageCroppedBWRotated,threshTopVal,255,cv2.THRESH_BINARY)
-		debugThreshTop = erodeAndDilate(debugThreshTop,np.ones((5,5),np.uint8),1)
-		cv2.imshow(str(fileName),debugThreshTop)
+		unused, top_debugThresh = cv2.threshold(top_imageBW_crop_rotated,
+			                                    top_threshValue,255,
+			                                    cv2.THRESH_BINARY)
+		top_debugThresh = erodeAndDilate(top_debugThresh,np.ones((5,5),
+			                             np.uint8),1)
+		cv2.imshow(str(top_fileName),top_debugThresh)
 		cv2.waitKey(0)
-		cv2.destroyWindow(str(fileName))
-		debugContourTop = imageCroppedColor
-		cv2.drawContours(debugContourTop,topContours_norotate,topLargestIndex_norotate,(0,0,255),1)
-		cv2.imshow(str(fileName),debugContourTop)
+		cv2.destroyWindow(str(top_fileName))
+		debugContourTop = top_imageColor_crop
+		cv2.drawContours(debugContourTop,top_Contours_noRotate,
+			             top_largestIndex_noRotate,(0,0,255),1)
+		cv2.imshow(str(top_fileName),debugContourTop)
 		cv2.waitKey(0)
-		cv2.destroyWindow(str(fileName))
+		cv2.destroyWindow(str(top_fileName))
 
+	# Calculate the length, width, etc. of the side image seed.
+	side_threshVal = 30
+	side_Variables = findLengthWidth(side_imageBW_crop,side_threshVal)
+	side_Length = side_Variables['length']
+	side_Width = side_Variables['width']
+	side_Angle = side_Variables['angle']
+	side_centerPoint = side_Variables['center']
+	side_Area = side_Variables['area']
+	side_largestIndex = side_Variables['largestIndex'] 
+	side_Contours = side_Variables['contours']
+	side_ScaleFactor = calcSideScaleFactor(top_centerPoint_noRotate,200,200,
+		                                  top_ScaleFactor,
+		                                  side_ScaleFactor_eqM,
+		                                  side_ScaleFactor_eqB,
+		                                  side_ScaleFactor_intersectX,
+		                                  top_CameraDist_in,
+		                                  top_CameraDist_angle,
+		                                  top_Angle_noRotate,
+		                                  top_Length_rotated)
 
-	# find SIDE IMAGE height, volume
-	# navigate to files and open
-	fileName_Side = string.replace(fileName,'TopImage','SideImage')
-	#if fileName_Side[-7:-4] == '000':
-	#	fileName_Side = string.replace(fileName,'SideImage','Side')
-	#	# errors propogate... a lazy programmer made this necessary
-	fileName_Side = string.replace(fileName_Side,'-27-','-26-') # hack :(
-	print('REMOVE THIS!' + ' fileName_Side = ' + fileName_Side)
-
-	imageColor_Side = cv2.imread(fileName_Side,1) # three channel image (B,G,R)
-	imageBW_Side = cv2.imread(fileName_Side,0)
-	# end navigate
-
-	# crop image
-	#cropystart = 390
-	#cropyend = 950
-	#cropxstart = 850
-	#cropxend = 970
-	imageCroppedBW_Side = imageBW_Side#[cropystart:cropyend,cropxstart:cropxend] # NOTE: its image[y: y + h, x: x + w]
-	imageCroppedColor_Side = imageColor_Side#[cropystart:cropyend,cropxstart:cropxend]
-	# end crop image
-
-
-	# calculate length, width (height because side), area, and debug variables
-	threshSideVal = 30
-	sideImgVariables = findLengthWidth(imageCroppedBW_Side,threshSideVal)
-	sideLength = sideImgVariables['length']
-	sideWidth = sideImgVariables['width']
-	sideRotateAngle = sideImgVariables['angle']
-	sideCenterPoint = sideImgVariables['center']
-	sideArea = sideImgVariables['area']
-	sideLargestIndex = sideImgVariables['largestIndex'] 
-	sideContours = sideImgVariables['contours']
-	# end side calculations
-
-	#ScaleFactorSide now calculated per seed
-	ScaleFactorSide = calcSideScaleFactor(topCenterPoint_norotate,200,200,lengthScaleFactorTop,side_ScaleFactor_eqM,side_ScaleFactor_eqB,side_ScaleFactor_intersectX,CameraDist_in,CameraDist_angle,topRotateAngle_norotate,topLength)
-	#print('scaleFactorSide = ' + str(ScaleFactorSide))
-	# end scaleFactorSide calculations
-
-
-
-	# debug
 	if debugMode:
-		unused, debugThreshSide = cv2.threshold(imageCroppedBW_Side,threshSideVal,255,cv2.THRESH_BINARY)
-		debugThreshSide = erodeAndDilate(debugThreshSide,np.ones((5,5),np.uint8),1)
-		cv2.imshow(str(fileName),debugThreshSide)
+		unused, debugThreshSide = cv2.threshold(side_imageBW_crop,
+			                                    side_threshVal,255,
+			                                    cv2.THRESH_BINARY)
+		debugThreshSide = erodeAndDilate(debugThreshSide,np.ones((5,5),
+			                             np.uint8),1)
+		cv2.imshow(str(top_fileName),debugThreshSide)
 		cv2.waitKey(0)
-		cv2.destroyWindow(str(fileName))
-		debugContourSide = imageCroppedColor_Side
-		# draw rectangle
-		# create top image rectangle containing seed, and find midpoints
-		bounds = cv2.minAreaRect(sideContours[sideLargestIndex])
-		# box used for finding midpoints and drawing
-		box = cv2.cv.BoxPoints(bounds) # note cv2.cv.BoxPoints(rect) will be removed in openCV 3
-		#cv2.boxPoints(bounds) - if openCV 3
+		cv2.destroyWindow(str(top_fileName))
+		debugContourSide = side_imageColor_crop
+		# Create rectangle containing seed and find midpoints.
+		bounds = cv2.minAreaRect(side_Contours[side_largestIndex])
+		box = cv2.cv.BoxPoints(bounds)
 		box = np.int0(box)
 		cv2.drawContours(debugContourSide,[box],0,(0,0,255),1)
-		cv2.drawContours(debugContourSide,sideContours,sideLargestIndex,(0,0,255),1)
-		cv2.imshow(str(fileName),debugContourSide)
+		cv2.drawContours(debugContourSide,side_Contours,side_largestIndex,
+			             (0,0,255),1)
+		cv2.imshow(str(top_fileName),debugContourSide)
 		cv2.waitKey(0)
-		cv2.destroyWindow(str(fileName))
+		cv2.destroyWindow(str(top_fileName))
 
-
-
-	# check for errors
-	# case 1 - contour_conflicts_edge
-	if contourHitsEdge(topLargestIndex_norotate,topContours_norotate,imageCroppedBW):
+	# Code for detecting any processing errors.
+	error = ''
+	if contourHitsEdge(top_largestIndex_noRotate,top_Contours_noRotate,
+		               top_imageBW_crop):
 		error += 'contour_conflicts_edge-'
-
-	# case 2 - area_too_small_top
-	if topArea_norotate <= 100:
-		error += 'area_too_small_top-'
-
-	# case 3 - area_too_small_side
-	if sideArea <= 100:
-		error += 'area_too_small_side-'
-
-	# case 4 - area_too_large
-	if topArea_norotate >= 40000:
-		error += 'area_too_large-'
-
-	# case 5 - over angle
-	if abs(topRotateAngle_norotate) > 80:
+	if top_Area_noRotate <= 100:
+		error += 'top_area_too_small-'
+	if side_Area <= 100:
+		error += 'side_area_too_small-'
+	if top_Area_noRotate >= 40000:
+		# No seeds (oat) were larger than this in any tests.
+		error += 'top_area_too_large-'
+	if abs(top_Angle_noRotate) > 80:
 		error += 'angle_over_80-'
-	# end check for exceptions
 
-
-	# calculate volume
+	# Volume calculation occurs below if no errors are detected.
 	if len(error) < 1:
-		# before passing side image, we will rotate it so the long axis of the seedis in line
-		# with the x-axis in the image
-		# we will not have to rotate it often
-		if abs(sideRotateAngle) > 6:
-			imageRotated_Side = rotateImage(imageCroppedBW_Side,sideRotateAngle,sideCenterPoint)
-			sideImgVariables_forVol = findLengthWidth(imageRotated_Side,threshSideVal)
+		if abs(side_Angle) > 6:
+			# Rotate the side image so the axis of its length is
+			#    parallel to the x-axis. Not always necessary.
+			side_imageRotated_forVol = rotateImage(side_imageBW_crop,
+				                                   side_Angle,
+				                                   side_centerPoint)
+			side_Variables_forVol = findLengthWidth(side_imageRotated_forVol,
+				                                    side_threshVal)
 		else:
-			imageRotated_Side = imageCroppedBW_Side
-			sideImgVariables_forVol = sideImgVariables
-		volume = findVolume(imageCroppedBWRotated,imageRotated_Side,topImgVariables,sideImgVariables_forVol,threshSideVal,lengthScaleFactorTop,ScaleFactorSide)
-		#print('volume = ' + str(volume)) # debug output
-		# running volume on poorly formed numpy arrays is a bad idea
+			side_imageRotated_forVol = side_imageBW_crop
+			side_Variables_forVol = side_Variables
+		volume = findVolume(top_imageBW_crop_rotated,side_imageRotated_forVol,
+			                top_Variables_rotated,side_Variables_forVol,
+			                side_threshVal,top_ScaleFactor,side_ScaleFactor)
 	else:
 		volume = 0
-	# end volume calculation
 
-	# find average color value
-	# uses top images only because color correction was performed
-	# goes through every pixel in array and find average value of each channel
-	# !!!! note values are B G R !!!!
-	# Initialize empty list
-	lst_intensities = []
-	# Create a mask image that contains the contour filled in
-	cimg = np.zeros_like(imageCroppedBW)
-	cv2.drawContours(cimg,topContours_norotate,topLargestIndex_norotate,255,-1)
-
-	# debug
-	#cv2.imshow('debugOutput_mask',cimg)
-	#cv2.waitKey(0)
-	#cv2.destroyWindow('debugOutput_mask')
-
-	# Access the image pixels and create a 1D numpy array then add to list
-	pts = np.where(cimg == 255) # ex: (array([305, 305, 305, ..., 426, 426, 426]), array([507, 508, 509, ..., 707, 711, 712]))
+	# Find average color value. Numpy values are saved as B,G,R.
+	#    Only accurate if pre-processed correctly. The next steps
+	#    Create a mask over the colored pixels before a list is made
+	#    that can be used to start manipulating the color values.
+	cimg = np.zeros_like(top_imageBW_crop)
+	cv2.drawContours(cimg,top_Contours_noRotate,top_largestIndex_noRotate,
+		             255,-1)
+	pts = np.where(cimg == 255) # List of all seed colored pixels.
 	i = 0
+	lst_intensities = []
 	while i < len(pts[0]):
-		lst_intensities.append(imageCroppedColor[pts[0][i], pts[1][i]])
+		lst_intensities.append(top_imageColor_crop[pts[0][i], pts[1][i]])
 		i += 1
-	# create a dictionary of color count that will be printed later
-	color_dict = {}
-	# loop and color averaging variables
+	color_dict = {} # Dictionary for keeping count of color occurences.
 	blue = 0
 	green = 0
 	red = 0
 	i = 0
 	pixelcount = 0
 	while i < len(lst_intensities):
-		# for every pixel of every color, we keep track of count
 		b_temp = lst_intensities[i][0]
 		g_temp = lst_intensities[i][1]
 		r_temp = lst_intensities[i][2]
-		# use this for averaging
-		# can add a filter here
+		# A filter could be used here.
 		blue += b_temp
 		green += g_temp
 		red += r_temp
-		pixelcount += 1 # keep track of how many pixels actually get analyzed
-		rgb_key = (r_temp,g_temp,b_temp) # create a dictionary key
+		pixelcount += 1 # Number of pixels analyzed (if filter used)
+		rgb_key = (r_temp,g_temp,b_temp) # Key for dictionary
 		if rgb_key in color_dict:
 			color_dict[rgb_key] += 1
 		else:
 			color_dict[rgb_key] = 1
 		i += 1
-	# end loop over all colored pixels and print to a csv file
-	# create a csv file to store pixel r g b count data into
-	# we do this for each image so we can investigate individual pixels later
-	slash_index = fileName.find('/') # hopefully this is always the directory above a SeedImages directory
-	color_dir_name = fileName[:slash_index+1]
-	color_file_number = str(x).zfill(3)
-	csvfile_colors = open(color_dir_name + 'TopImage_' + color_file_number + '_rgb.csv', 'w')
+	# An additional csv file is created to store RGB color information.
+	slash_index = top_fileName.find('/')
+	color_dir_name = top_fileName[:slash_index+1]
+	color_file_number = str(x).zfill(3) # Pad with zeroes
+	csvfile_colors = open(color_dir_name + 'TopImage_' + color_file_number
+		                  + '_rgb.csv', 'w')
 	fieldnames_colors = ['r','g','b','count']
 	writerObj2 = csv.DictWriter(csvfile_colors, fieldnames=fieldnames_colors)
 	writerObj2.writeheader()
-	writerObj2.writerow({'r':'','g':'','b':'total count:','count':str(pixelcount)}) # print total count
+	writerObj2.writerow({'r':'','g':'','b':'total count:',
+	                     'count':str(pixelcount)}) # Prints pixel total
 	for key, value in color_dict.items():
 		if value > 2:
-			writerObj2.writerow({'r':str(key[0]),'g':str(key[1]),'b':str(key[2]),'count':str(value)})
-	csvfile_colors.close() # end file writing
-	# save average color
+			writerObj2.writerow({'r':str(key[0]),'g':str(key[1]),
+				                 'b':str(key[2]),'count':str(value)})
+	csvfile_colors.close()
 	if pixelcount > 0:
 		blueAverage = blue/pixelcount
 		greenAverage = green/pixelcount
@@ -310,75 +266,74 @@ for fileName in glob.glob(workingDir + '/TopImage*'):
 		blueAverage = 0
 		greenAverage = 0
 		redAverage = 0
-	# end color find
 
-	# scale from pixels to cm
-	lengthcm = topLength*lengthScaleFactorTop
-	widthcm = topWidth*widthScaleFactorTop
-	heightcm = sideWidth*ScaleFactorSide
-	# end scale
+	# Final scaling step
+	lengthcm = top_Length_noRotate*top_ScaleFactor
+	widthcm = top_Width_noRotate*top_ScaleFactor
+	heightcm = side_Width*side_ScaleFactor
 	
-	# create debug output
-	debugImage = imageCroppedColor
-	# draw contour trace
-	cv2.drawContours(debugImage,topContours_norotate,topLargestIndex_norotate,(0,0,255),1)
-	# draw rectangle
-	# create top image rectangle (rotated) containing seed, and find midpoints
-	bounds = cv2.minAreaRect(topContours_norotate[topLargestIndex_norotate])
-	# box used for finding midpoints and drawing
-	box = cv2.cv.BoxPoints(bounds) # note cv2.cv.BoxPoints(rect) will be removed in openCV 3
-	#cv2.boxPoints(bounds) - if openCV 3
-	box = np.int0(box)
-	cv2.drawContours(debugImage,[box],0,(0,0,255),1)
-	# draw center
-	cv2.circle(debugImage,topCenterPoint_norotate,2,(0,255,0),-1)
-	cv2.putText(debugImage,'ctr',topCenterPoint_norotate,cv2.FONT_HERSHEY_SIMPLEX,.5,(0,255,0))
-
-	# add text
-	lengthText = 'length (cm) = ' + str(lengthcm)
-	widthText = 'width (cm) = ' + str(widthcm)
-	areaText = 'area (pixels) = ' + str(topArea_norotate)
-	colorValueText = 'color value (R G B) = (' + str(redAverage) + "," + str(greenAverage) + "," + str(blueAverage) + ")"
-	heightText = 'height (cm) = ' + str(heightcm)
-	volumeText = 'volume (cm3) = ' + str(volume)
-	angleText = 'angle (degrees) = ' + str(topRotateAngle_norotate)
-	errorText = 'error = ' + error
-	topxText = 'topXpos (pixel) = ' + str(topX)
-	topyText = 'topYpos (pixel) = ' + str(topY)
-	cv2.putText(debugImage,fileName,(10,20),cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
-	cv2.putText(debugImage,lengthText,(10,40),cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
-	cv2.putText(debugImage,widthText,(10,60),cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
-	cv2.putText(debugImage,areaText,(10,80),cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
-	cv2.putText(debugImage,colorValueText,(10,100),cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
-	cv2.putText(debugImage,heightText,(10,120),cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
-	cv2.putText(debugImage,volumeText,(10,140),cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
-	cv2.putText(debugImage,angleText,(10,160),cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
-	cv2.putText(debugImage,errorText,(10,180),cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
-	cv2.putText(debugImage,topxText,(10,200),cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
-	cv2.putText(debugImage,topyText,(10,220),cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
-
 	if debugMode:
-		cv2.imshow(str(fileName),debugImage)
+		debugImage = top_imageColor_crop
+		cv2.drawContours(debugImage,top_Contours_noRotate,
+			             top_largestIndex_noRotate,(0,0,255),1)
+		bounds = cv2.minAreaRect(
+			   top_Contours_noRotate[top_largestIndex_noRotate])
+		box = cv2.cv.BoxPoints(bounds) # Box around seed
+		box = np.int0(box)
+		cv2.drawContours(debugImage,[box],0,(0,0,255),1)
+		cv2.circle(debugImage,top_centerPoint_noRotate,2,(0,255,0),-1)
+		cv2.putText(debugImage,'ctr',top_centerPoint_noRotate,
+			        cv2.FONT_HERSHEY_SIMPLEX,.5,(0,255,0))
+		lengthText = 'length (cm) = ' + str(lengthcm)
+		widthText = 'width (cm) = ' + str(widthcm)
+		areaText = 'area (pixels) = ' + str(top_Area_noRotate)
+		colorValueText = 'color value (R G B) = (' + str(redAverage) + "," + str(greenAverage) + "," + str(blueAverage) + ")"
+		heightText = 'height (cm) = ' + str(heightcm)
+		volumeText = 'volume (cm3) = ' + str(volume)
+		angleText = 'angle (degrees) = ' + str(top_Angle_noRotate)
+		errorText = 'error = ' + error
+		topxText = 'topXpos (pixel) = ' + str(topX)
+		topyText = 'topYpos (pixel) = ' + str(topY)
+		cv2.putText(debugImage,top_fileName,(10,20),
+			        cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
+		cv2.putText(debugImage,lengthText,(10,40),
+			        cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
+		cv2.putText(debugImage,widthText,(10,60),
+			        cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
+		cv2.putText(debugImage,areaText,(10,80),
+			        cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
+		cv2.putText(debugImage,colorValueText,(10,100),
+			        cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
+		cv2.putText(debugImage,heightText,(10,120),
+			        cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
+		cv2.putText(debugImage,volumeText,(10,140),
+			        cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
+		cv2.putText(debugImage,angleText,(10,160),
+			        cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
+		cv2.putText(debugImage,errorText,(10,180),
+			        cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
+		cv2.putText(debugImage,topxText,(10,200),
+			        cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
+		cv2.putText(debugImage,topyText,(10,220),
+			        cv2.FONT_HERSHEY_SIMPLEX,.5,(0,0,255))
+		cv2.imshow(str(top_fileName) + ' final output',debugImage)
 		cv2.waitKey(0)
-		cv2.destroyWindow(str(fileName))
+		cv2.destroyWindow(str(top_fileName) + ' final output')
 
-	writerObj.writerow({'number':str(x),'file path':fileName,
-						'length (cm)':str(lengthcm),'width (cm)':str(widthcm),
-						'area (pixels)':str(topArea_norotate),'color value (R)':str(redAverage),
-						'color value (G)':str(greenAverage),'color value (B)':str(blueAverage),
-						'height (cm)':str(heightcm),'volume (cm3)':str(volume),
-						'angle (degrees)':str(topRotateAngle_norotate),'error':error,'topX':topX,'topY':topY})
-	print('processed: ' + fileName + '  [' + str(x) + ']')
+	writerObj.writerow({'number':str(x),
+		                'file path':top_fileName,
+						'length (cm)':str(lengthcm),
+						'width (cm)':str(widthcm),
+						'area (pixels)':str(top_Area_noRotate),
+						'color value (R)':str(redAverage),
+						'color value (G)':str(greenAverage),
+						'color value (B)':str(blueAverage),
+						'height (cm)':str(heightcm),
+						'volume (cm3)':str(volume),
+						'angle (degrees)':str(top_Angle_noRotate),
+						'error':error,'topX':topX,'topY':topY})
+	print('processed: ' + top_fileName + '  [' + str(x) + ']')
 	x += 1
 csvfile.close()
-# !!!!!END LOOP!!!!!
-print('>>> Done: data saved in ' + color_dir_name)
-exit() # purposeful, this can be changed if this is turned into a MAIN function
-
-# write debug output and show image
-#cv2.imwrite('debug.bmp',debugImage)
-
-
-
-
-
+print('Done: data saved in ' + color_dir_name)
+exit()

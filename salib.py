@@ -2,7 +2,8 @@
 
 A library full of functions used in the main seed analyzing script.
 Each function has an associated Docstring and further explanation
-is available via the project documentation on Github.
+is available via the project documentation on Github. Developed and
+tested with Python 2.7.x and OpenCV 2.4.x.
 
 Written by Kevin Kreher (kmk279@cornell.edu).
 """
@@ -10,7 +11,6 @@ Written by Kevin Kreher (kmk279@cornell.edu).
 __author__ = 'Kevin Kreher'
 
 import numpy as np
-import cv
 import cv2
 import math
 import glob
@@ -44,7 +44,7 @@ def findMaxSizeBounds(imgBW,thrVal):
     thrVal - value to use for thresholding operation
     """
     x,imageThreshed = cv2.threshold(imgBW,thrVal,255,cv2.THRESH_BINARY)
-    imageThreshed = erodeAndDilate(imageThreshed,np.ones((5,5),np.uint8),1)
+    imageThreshed = erodeAndDilate(imageThreshed,np.ones((5,5)),1)
     imageContour = copy.copy(imageThreshed) # Copy for operating on
     contours, hierarchy = cv2.findContours(imageContour,cv2.RETR_TREE,
                                            cv2.CHAIN_APPROX_SIMPLE)
@@ -370,7 +370,9 @@ def calcSideScaleFactor(centerpoint,cropleft,croptop,topScale,eqM,eqB,
     
     centerpoint - (x,y) of seed center point
     cropleft - amount left side was cropped by (done in pre-processing)
+                   by the function alter_top_crop (in MyFunctions.py).
     croptop - amount top was cropped by (done in pre-processing)
+                  by the function alter_top_crop (in MyFunctions.py).
     topScale - topscale amount (cm/pixel)
     eqM - "distance from camera equation" slope
     eqB - "distance from camera equation" offset

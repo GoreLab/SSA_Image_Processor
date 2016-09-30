@@ -17,11 +17,11 @@ __author__ = 'Kevin Kreher'
 
 from salib import *
 import numpy as np
-import cv
 import cv2
 import math
 import csv
 import string
+import os.path
 
 # These variables are responsible for converting from pixel length
 #    measurements made by the script to real world distances.
@@ -55,24 +55,21 @@ side_ScaleFactor_intersectX = 466
 # DebugMode shows the image at each step, not recommended when
 #    many images need to be processed.
 debugMode = input('Enter debug mode? (1 = yes, 0 = no): ')
-
 workingDir = raw_input('Directory name (ex. test12801/SeedImages)?: ')
-csvfile = open(workingDir + '_processed.csv', 'w') # CSV file for data.
-fieldnames = ['number','file path','length (cm)','width (cm)','area (pixels)',
+csvfile = open(workingDir + '_processed.csv', 'wb') # CSV file for data.
+fieldnames = ['number','file path','length (cm)','width (cm)','height (cm)',
               'color value (R)','color value (G)','color value (B)',
-			  'height (cm)','volume (cm3)','angle (degrees)','error',
-			  'topX','topY']
+			  'volume (cm3)','angle (degrees)','error']
 writerObj = csv.DictWriter(csvfile, fieldnames=fieldnames)
 writerObj.writeheader()
 print('Processing directory: ' + workingDir)
-x = 1 # Track number of seeds processed.
+x = 0 # Tracks with image number.
 for top_fileName in glob.glob(workingDir + '/TopImage*'):
 	# Find the side image filename.
 	side_fileName = string.replace(top_fileName,'TopImage','SideImage')
-	# Below is a hack for a problem introduced by the pre-processor.
-	side_fileName = string.replace(side_fileName,'-27-','-26-')
-	print('REMOVE THIS!' + ' side_fileName = ' + side_fileName)
-
+	if os.path.isfile(side_fileName) == False:
+		# A lazy programmer made this step necessary.
+		side_fileName = string.replace(side_fileName,'SideImage','Side')
 	# Import top and side images.
 	top_imageColor = cv2.imread(top_fileName,1) # B,G,R color channels
 	top_imageBW = cv2.imread(top_fileName,0) # BW
@@ -83,6 +80,14 @@ for top_fileName in glob.glob(workingDir + '/TopImage*'):
 	top_imageColor_crop = top_imageColor
 	side_imageBW_crop = side_imageBW
 	side_imageColor_crop = side_imageColor
+
+	if debugMode:
+		cv2.imshow(str(top_fileName),top_imageColor_crop)
+		cv2.waitKey(0)
+		cv2.destroyWindow(str(top_fileName))
+		cv2.imshow(str(side_fileName),side_imageColor_crop)
+		cv2.waitKey(0)
+		cv2.destroyWindow(str(side_fileName))
 
 	# Calculate the length, width, etc. of the top image seed.
 	top_threshValue = 60
@@ -143,7 +148,10 @@ for top_fileName in glob.glob(workingDir + '/TopImage*'):
 	side_Area = side_Variables['area']
 	side_largestIndex = side_Variables['largestIndex'] 
 	side_Contours = side_Variables['contours']
-	side_ScaleFactor = calcSideScaleFactor(top_centerPoint_noRotate,200,200,
+	# Note that for calcSideScaleFactor, the two arguments cropleft
+	#    and croptop are dependent on pre-processing parameters.
+	#    Specifically alter_top_crop (in MyFunctions.py).
+	side_ScaleFactor = calcSideScaleFactor(top_centerPoint_noRotate,300,300,
 		                                  top_ScaleFactor,
 		                                  side_ScaleFactor_eqM,
 		                                  side_ScaleFactor_eqB,
@@ -243,11 +251,13 @@ for top_fileName in glob.glob(workingDir + '/TopImage*'):
 			color_dict[rgb_key] = 1
 		i += 1
 	# An additional csv file is created to store RGB color information.
-	slash_index = top_fileName.find('/')
-	color_dir_name = top_fileName[:slash_index+1]
+	slash_index = workingDir.rfind('/')
+	if slash_index == -1:
+		slash_index = workingDir.rfind('\\') # Running on windows.
+	color_dir_name = workingDir[:slash_index+1]
 	color_file_number = str(x).zfill(3) # Pad with zeroes
 	csvfile_colors = open(color_dir_name + 'TopImage_' + color_file_number
-		                  + '_rgb.csv', 'w')
+		                  + '_rgb.csv', 'wb') # CSV file for data.
 	fieldnames_colors = ['r','g','b','count']
 	writerObj2 = csv.DictWriter(csvfile_colors, fieldnames=fieldnames_colors)
 	writerObj2.writeheader()
@@ -324,14 +334,13 @@ for top_fileName in glob.glob(workingDir + '/TopImage*'):
 		                'file path':top_fileName,
 						'length (cm)':str(lengthcm),
 						'width (cm)':str(widthcm),
-						'area (pixels)':str(top_Area_noRotate),
+						'height (cm)':str(heightcm),
 						'color value (R)':str(redAverage),
 						'color value (G)':str(greenAverage),
 						'color value (B)':str(blueAverage),
-						'height (cm)':str(heightcm),
 						'volume (cm3)':str(volume),
 						'angle (degrees)':str(top_Angle_noRotate),
-						'error':error,'topX':topX,'topY':topY})
+						'error':error})
 	print('processed: ' + top_fileName + '  [' + str(x) + ']')
 	x += 1
 csvfile.close()

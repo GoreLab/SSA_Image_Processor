@@ -60,28 +60,30 @@ def test_pixel_by_row(image, RGBvals, rowToTest, imagePath):
     for yVal in range(0, rowToTest):
         for xVal in range(0, imageWidth - 1):
             if RGBvals == image[yVal, xVal]:
-                returnArray.append([xVal, yVal])
+                returnArray.append(xVal)
     return returnArray
 
 
 # Crops down a binary back plate image
 def crop_to_plate(originalFilePath, imageBinary, imageBinaryPath, savepath):
-    topWhitePixelsArray = test_pixel_by_row(imageBinary, 255, 1, imageBinaryPath)
+    topWhitePixelsArray = test_pixel_by_row(imageBinary, 255, 10, imageBinaryPath)
     if len(topWhitePixelsArray) != 0:
-        firstWhitePixel = topWhitePixelsArray[0][0]
-        lastWhitePixel = topWhitePixelsArray[(len(topWhitePixelsArray) - 1)][0]
+        firstWhitePixel = min(topWhitePixelsArray)
+        lastWhitePixel = max(topWhitePixelsArray)
         with Image.open(imageBinaryPath) as im:
             imageWidth, imageHeight = im.size
         crop(originalFilePath, 0, (imageWidth - lastWhitePixel), 0, firstWhitePixel, savepath)
+    else:
+        with Image.open(imageBinaryPath) as im:
+            imageWidth, imageHeight = im.size
+        crop(originalFilePath, 0,0, 0, 0, savepath)        
 
 
 # Creates the file structure needed for Plate cleanup
 def plate_cleanup_file_creation(DirPath):
     # Output folder
-    if not os.path.exists(DirPath + "\\Output\\Side"):
-        os.makedirs(DirPath + "\\Output\\Side")
-    if not os.path.exists(DirPath + "\\Output\\Top"):
-        os.makedirs(DirPath + "\\Output\\Top")
+    if not os.path.exists(DirPath + "\\Output"):
+        os.makedirs(DirPath + "\\Output")
     # SeedImages folder:
     if not os.path.exists(DirPath + "\\SeedImages\\Side"):
         os.makedirs(DirPath + "\\SeedImages\\Side")
@@ -140,9 +142,9 @@ def alter_side(dirPath, saveDirPath):
     for file in os.listdir(dirPath):
         if file.endswith(".png") or file.endswith(".jpg"):
             image = Image.open(dirPath + "\\" + file)
-            image.crop((850, 0, 1000, 990)).save(saveDirPath + file)
-            image = Image.open(saveDirPath + file)
-            image.rotate(90).save(saveDirPath + file)
+            image_cropped = image.crop((850, 0, 1000, 990))
+            image_rotated = image_cropped.rotate(90,expand=True)
+            image_rotated.save(saveDirPath + file)
 
 
 # Removes the need to use IrfanView for the Top image
@@ -153,7 +155,10 @@ def alter_top_crop(dirPath, saveDirPath):
             image = Image.open(filePath)
             with Image.open(filePath) as im:
                 imageWidth, imageHeight = im.size
-            image.crop((200, 200, imageWidth, imageHeight)).save(saveDirPath + file)
+            # !!!! If the crop below is changed, the crop in samain.py
+            #    that is passed to calcSideScaleFactor
+            #    (a salib.py function) also needs to be changed!
+            image.crop((300,300, imageWidth, imageHeight)).save(saveDirPath + file)
 
 
 # Removes need to do custom color correction on images

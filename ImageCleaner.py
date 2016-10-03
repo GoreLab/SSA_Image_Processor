@@ -41,11 +41,13 @@ if correctionCropDone == "n" or correctionCropDone == "N":
                                    blueOut)
             # Runs the cropping of all images this is done so that processing time during use of the CART algorithms doesn't
             # take as long
+            print("working...")
             alter_side((DirPath + "\\Edited\\Side\\"), (DirPath + "\\Edited\\Side\\"))
             alter_top_crop((DirPath + "\\Edited\\Top\\"), (DirPath + "\\Edited\\Top\\"))
         else:
-            alter_side((DirPath + "\\SeedImages\\Side\\"), (DirPath + "\\Edited\\Side\\"))
-            alter_top_crop((DirPath + "\\SeedImages\\Top\\"), (DirPath + "\\Edited\\Top\\"))
+        	print("working...")
+        	alter_side((DirPath + "\\SeedImages\\Side\\"), (DirPath + "\\Edited\\Side\\"))
+        	alter_top_crop((DirPath + "\\SeedImages\\Top\\"), (DirPath + "\\Edited\\Top\\"))
 # Creation of variables used in the auto cropping of the side images
 CARTDirPath = DirPath + "\\Plate"
 originalDirPathSide = DirPath + "\\Edited\Side"
@@ -56,6 +58,8 @@ plateCARTMade = "notDone"
 while plateCARTMade != "Y" or plateCARTMade != "y":
     plateCARTMade = raw_input(
         "please type in 'Y' when you have completed running the plate CART algorithm on the images in edited/side and placed the output in the plate folder")
+    if plateCARTMade == "Y" or plateCARTMade == "y":
+    	break
 # Auto Cropping of side images note that it skips over the 0 image as that was simply a starting image and never
 # has a seed in it
 for file in os.listdir(CARTDirPath):
@@ -70,8 +74,9 @@ for file in os.listdir(CARTDirPath):
         imageBinaryPath = write_file(newPathBW, file, imageDilate, 1)
         originalFileName = file[:(len(file) - 16)]
         print(originalFileName)
-        originalFileName += ".png"
+        originalFileName += ".jpg"
         originalFilePath = originalDirPathSide + "\\" + originalFileName
         croppedImage = crop_to_plate(originalFilePath, imageDilate, imageBinaryPath,
                                      newPathCropped + "\\" + originalFileName)
 print("now run the side and top CART algorithms to get the output")
+exit()

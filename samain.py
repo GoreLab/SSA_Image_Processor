@@ -186,14 +186,19 @@ for top_fileName in glob.glob(workingDir + '/TopImage*'):
 	error = ''
 	if contourHitsEdge(top_largestIndex_noRotate,top_Contours_noRotate,
 		               top_imageBW_crop):
-		error += 'contour_conflicts_edge-'
+		error += 'top_contour_conflicts_edge-'
+	if contourHitsEdge(side_largestIndex,side_Contours,side_imageBW_crop):
+		error += 'side_contour_conflicts_edge-'
 	if top_Area_noRotate <= 100:
 		error += 'top_area_too_small-'
 	if side_Area <= 100:
 		error += 'side_area_too_small-'
 	if top_Area_noRotate >= 40000:
-		# No seeds (oat) were larger than this in any tests.
 		error += 'top_area_too_large-'
+	if side_Area >= 16000:
+		# No seeds (oat), when properly detected were larger/smaller
+		# than these numbers in tests. Applies to top/side.
+		error += 'side_area_too_large-'
 	if abs(top_Angle_noRotate) > 80:
 		error += 'angle_over_80-'
 

@@ -187,8 +187,8 @@ for top_fileName in glob.glob(workingDir + '/TopImage*'):
 	if contourHitsEdge(top_largestIndex_noRotate,top_Contours_noRotate,
 		               top_imageBW_crop):
 		error += 'top_contour_conflicts_edge-'
-	if contourHitsEdge(side_largestIndex,side_Contours,side_imageBW_crop):
-		error += 'side_contour_conflicts_edge-'
+	#if contourHitsEdge(side_largestIndex,side_Contours,side_imageBW_crop):
+	#	error += 'side_contour_conflicts_edge-'
 	if top_Area_noRotate <= 100:
 		error += 'top_area_too_small-'
 	if side_Area <= 100:

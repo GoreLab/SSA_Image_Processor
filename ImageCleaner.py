@@ -74,7 +74,7 @@ for file in os.listdir(CARTDirPath):
         imageBinaryPath = write_file(newPathBW, file, imageDilate, 1)
         originalFileName = file[:(len(file) - 16)]
         print(originalFileName)
-        originalFileName += ".jpg"
+        originalFileName += ".png"
         originalFilePath = originalDirPathSide + "\\" + originalFileName
         croppedImage = crop_to_plate(originalFilePath, imageDilate, imageBinaryPath,
                                      newPathCropped + "\\" + originalFileName)

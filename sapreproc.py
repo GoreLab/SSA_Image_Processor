@@ -1,23 +1,33 @@
+""" sapreproc.py - Script for pre-processing seed images.
+
+The goal of this program is to take side and top images and crop
+them down so that the CART algorithm easily finds the seed. Color
+correction should be performed before using this script. Note that
+aggresive crop values significantly increase the speed of EasyPCC and
+thus the pre-processing step.
+
+Originally written by Edward Buckler.
+"""
+
 __author__ = 'Edward Buckler V'
-# The goal of this program is to take side and top images and crop them down so that the CART algorithm
-# can actually find the seed rather then picking up all the noise/inclusions. Also it helps in speeding up the
-# whole process
-# because the color correction takes so long on this it is advised that you use something like IrfanView to do that step
-# it is still of course still possible to do that through this program it just may add quite a lot of time
-# cropping on the other hand is quite fast so using this program to do that is still reasonably fast
+
 from preproclib import *
 
-# Asking user what needs to be done in terms of set up note inputs are not required to be capital 
+# Asking user what needs to be done in terms of set up.
+# note inputs are not required to be capital.
 DirPath = raw_input("What is the directory path(Directory with all images)?")
 filesMade = raw_input("Has the correct file structure been made?(Y/N): ")
 correctionCropDone = raw_input("Have all images already been edited and only the auto crop needs to run?(Y/N):")
 if correctionCropDone == "n" or correctionCropDone == "N":
     imagesAltered = raw_input("are the images cropped and corrected?(Y/N): ")
-    # Creating file structure is specified that it hasn't been done already
+    # Creating file structure is specified that it hasn't been done
+    # already.
     if filesMade == "n" or filesMade == "N":
         plate_cleanup_file_creation(DirPath)
-    # Does color correction to images by asking the user for the chanel values found from the color correction card and then
-    # after discerning what the correction value should be uses the function to run the correction
+    # Does color correction to images by asking the user for the
+    # channel values found from the color correction card and then
+    # after discerning what the correction value should be uses the
+    # function to run the correction
     if imagesAltered == "n" or imagesAltered == "N":
         ColorCorrectionDone = raw_input("was color correction done on the top and side images? (Y/N)")
         if ColorCorrectionDone == "n" or ColorCorrectionDone == "N":

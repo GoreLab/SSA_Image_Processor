@@ -1,9 +1,8 @@
 """ salib.py - Library of functions used in the script samain.py.
 
 A library full of functions used in the main seed analyzing script.
-Each function has an associated Docstring and further explanation
-is available via the project documentation on Github. Developed and
-tested with Python 2.7.x and OpenCV 2.4.x.
+Each function has an associated Docstring explaining the functionality.
+Developed and tested with Python 2.7.x and OpenCV 2.4.x.
 
 Written by Kevin Kreher (kmk279@cornell.edu).
 """
@@ -78,7 +77,7 @@ def findLengthWidth(workingImgBW,thrVal):
         # Error catch if no contour is found.
         return {'length':1, 'width':1, 'angle':0,
                 'center':(1,1), 'area':1, 'largestIndex':0,
-                'contours':[np.array([[[199, 519]]], dtype=np.int32)]}
+                'contours':[np.array([[[1, 1]]], dtype=np.int32)]}
     bounds = cv2.minAreaRect(contours[largestIndex])
     box = cv2.cv.BoxPoints(bounds) # Create a rotated rectangle
     box = np.int0(box) # The box has four corners
@@ -363,16 +362,16 @@ def calcSideScaleFactor(centerpoint,cropleft,croptop,topScale,eqM,eqB,
     image. When calibrated correctly the script accurately finds the
     distance of the blob (seed) from the side camera. With this
     information and the equation variables (found externally with the
-    calculator - see documentation on Github) the side scale factor is
-    calculated in the last step. If the top image is cropped before
-    the centerpoint input is calculated, the script can account for
-    this. See documentation for a visual of the trigonometry done here.
+    calculator - see documentation on Google Drive) the side scale
+    factor is calculated in the last step. If the top image is cropped
+    before the centerpoint input is calculated, the script can account
+    for this.
     
     centerpoint - (x,y) of seed center point
     cropleft - amount left side was cropped by (done in pre-processing)
-                   by the function alter_top_crop (in MyFunctions.py).
+                   by the function alter_top_crop (in preproclib.py).
     croptop - amount top was cropped by (done in pre-processing)
-                  by the function alter_top_crop (in MyFunctions.py).
+                  by the function alter_top_crop (in preproclib.py).
     topScale - topscale amount (cm/pixel)
     eqM - "distance from camera equation" slope
     eqB - "distance from camera equation" offset

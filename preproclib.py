@@ -14,6 +14,7 @@ import os
 import cv2
 import numpy as np
 from PIL import Image
+import saconfig as sacfg
 
 def thresh_binary(image, threshold, maxVal):
 	"""Turns a image into a binary image (black and white) if given
@@ -164,10 +165,9 @@ def alter_top_crop(dirPath, saveDirPath):
             image = Image.open(filePath)
             with Image.open(filePath) as im:
                 imageWidth, imageHeight = im.size
-            # !!!! If the crop below is changed, the crop in samain.py
-            #    that is passed to calcSideScaleFactor
-            #    (a salib.py function) also needs to be changed!
-            image.crop((300,300, imageWidth, imageHeight)).save(saveDirPath + file)
+            # Totally hidden dependency here, notice sacfg.
+            image.crop((sacfg.topCropleft,sacfg.topCroptop,
+                        imageWidth,imageHeight)).save(saveDirPath + file)
 
 def alter_color_correction(dirPath, saveDirPath, blueOut, greenOut, redOut):
 	""" Removes need to do custom color correction on images.

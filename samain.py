@@ -6,8 +6,8 @@ such as color, volume, and seed measurements. Note that the
 measurements require calibration data to be converted to real
 world units (typically centimeters or centimeters cubed). Also note
 that the pre-processing must be completed before using this script.
-The directory structure and steps for inputting calibration data can2
-be found with the documentation on Github. Developed and tested with
+The directory structure and steps for inputting calibration data can
+be found in the user guides on Google Drive. Developed and tested with
 Python 2.7.x and OpenCV 2.4.x.
 
 Written by Kevin Kreher (kmk279@cornell.edu).
@@ -16,50 +16,38 @@ Written by Kevin Kreher (kmk279@cornell.edu).
 __author__ = 'Kevin Kreher'
 
 from salib import *
+import saconfig as sacfg
 import numpy as np
 import cv2
 import math
 import csv
 import string
 import os.path
+import operator
 
 # These variables are responsible for converting from pixel length
-#    measurements made by the script to real world distances.
-#    Units are indicated by inline comments. Specifics are explained
-#    below and in documentation:
-#    top_ScaleFactor - Measured manually at center of top images.
-#    side_ScaleFactor_eqM - Using the Scaling Factor Calculator (see
-#                               documentation) provides the user with
-#                               two output variables describing a
-#                               linear equation with M being the slope
-#                               and B being the y-intercept.
-#    side_ScaleFactor_eqB - See side_ScaleFactor_eqM.
-#    side_ScaleFactor_intersectX - The x position where a line coming
-#                                      directly from the center of the
-#                                      side camera first intersects the
-#                                      top image. See documentation.
-#    top_CameraDist_in - Distance in inches that side camera center
-#                            line is out of the top image. See
-#                            documentation.
-#    top_CameraDist_angle - Angle in degrees as measured from side
-#                               camera center line to horizontal
-#                               (x-axis) in the top image. See
-#                               documentation
-top_ScaleFactor = 0.003118 			# centimeters/pixel
-top_CameraDist_in = 1.65625 		# inches
-top_CameraDist_angle = 76.4 		# degrees
-side_ScaleFactor_eqM = 0.00154
-side_ScaleFactor_eqB = 0.0003111
-side_ScaleFactor_intersectX = 466
+#    measurements made by the script to real world distances. They are
+#    all defined and described in saconfig.py, and the associated
+#	 Google Drive documentation.
+top_ScaleFactor = sacfg.topScaleFactor
+top_CameraDist_in = sacfg.topCameraDistin
+top_CameraDist_angle = sacfg.topCameraDistangle
+side_ScaleFactor_eqM = sacfg.sideScaleFactoreqM
+side_ScaleFactor_eqB = sacfg.sideScaleFactoreqB
+side_ScaleFactor_intersectX = sacfg.sideScaleFactorintersectX
+top_cropleft = sacfg.topCropleft
+top_croptop = sacfg.topCroptop
 
 # DebugMode shows the image at each step, not recommended when
 #    many images need to be processed.
-debugMode = input('Enter debug mode? (1 = yes, 0 = no): ')
+debugMode = sacfg.debugmode
 workingDir = raw_input('Directory name (ex. test12801/SeedImages)?: ')
 csvfile = open(workingDir + '_processed.csv', 'wb') # CSV file for data.
 fieldnames = ['number','file path','length (cm)','width (cm)','height (cm)',
               'color value (R)','color value (G)','color value (B)',
-			  'volume (cm3)','angle (degrees)','error']
+			  'volume (cm3)','angle (degrees)','error','height_derived (cm)',
+			  'count1','r1','g1','b1','count2','r2','g2','b2','count3','r3',
+			  'g3','b3','count4','r4','g4','b4','count5','r5','g5','b5']
 writerObj = csv.DictWriter(csvfile, fieldnames=fieldnames)
 writerObj.writeheader()
 print('Processing directory: ' + workingDir)
@@ -139,7 +127,10 @@ for top_fileName in glob.glob(workingDir + '/TopImage*'):
 		cv2.destroyWindow(str(top_fileName))
 
 	# Calculate the length, width, etc. of the side image seed.
-	side_threshVal = 30
+	side_threshVal = 15
+	# Note that for calcSideScaleFactor, the two arguments cropleft
+	#    and croptop are dependent on pre-processing parameters.
+	#    Specifically alter_top_crop (in preproclib.py).
 	side_Variables = findLengthWidth(side_imageBW_crop,side_threshVal)
 	side_Length = side_Variables['length']
 	side_Width = side_Variables['width']
@@ -148,10 +139,8 @@ for top_fileName in glob.glob(workingDir + '/TopImage*'):
 	side_Area = side_Variables['area']
 	side_largestIndex = side_Variables['largestIndex'] 
 	side_Contours = side_Variables['contours']
-	# Note that for calcSideScaleFactor, the two arguments cropleft
-	#    and croptop are dependent on pre-processing parameters.
-	#    Specifically alter_top_crop (in MyFunctions.py).
-	side_ScaleFactor = calcSideScaleFactor(top_centerPoint_noRotate,300,300,
+	side_ScaleFactor = calcSideScaleFactor(top_centerPoint_noRotate,
+										  top_cropleft,top_croptop,
 		                                  top_ScaleFactor,
 		                                  side_ScaleFactor_eqM,
 		                                  side_ScaleFactor_eqB,
@@ -183,24 +172,27 @@ for top_fileName in glob.glob(workingDir + '/TopImage*'):
 		cv2.destroyWindow(str(top_fileName))
 
 	# Code for detecting any processing errors.
+	top_Area_max_error = 40000
+	top_Area_min_error = 100
+	top_Angle_max_error = 80
+	side_Area_max_error = 16000
+	side_Area_min_error = 100
+	# No seeds (oat), when properly detected were larger/smaller
+	# than these numbers in tests. Applies to top/side.
 	error = ''
 	if contourHitsEdge(top_largestIndex_noRotate,top_Contours_noRotate,
 		               top_imageBW_crop):
 		error += 'top_contour_conflicts_edge-'
-	#if contourHitsEdge(side_largestIndex,side_Contours,side_imageBW_crop):
-	#	error += 'side_contour_conflicts_edge-'
-	if top_Area_noRotate <= 100:
+	if top_Area_noRotate <= top_Area_min_error:
 		error += 'top_area_too_small-'
-	if side_Area <= 100:
+	if side_Area <= side_Area_min_error:
 		error += 'side_area_too_small-'
-	if top_Area_noRotate >= 40000:
+	if top_Area_noRotate >= top_Area_max_error:
 		error += 'top_area_too_large-'
-	if side_Area >= 16000:
-		# No seeds (oat), when properly detected were larger/smaller
-		# than these numbers in tests. Applies to top/side.
+	if side_Area >= side_Area_max_error:
 		error += 'side_area_too_large-'
-	if abs(top_Angle_noRotate) > 80:
-		error += 'angle_over_80-'
+	if abs(top_Angle_noRotate) > top_Angle_max_error:
+		error += 'angle_over_max_error-'
 
 	# Volume calculation occurs below if no errors are detected.
 	if len(error) < 1:
@@ -249,7 +241,7 @@ for top_fileName in glob.glob(workingDir + '/TopImage*'):
 		green += g_temp
 		red += r_temp
 		pixelcount += 1 # Number of pixels analyzed (if filter used)
-		rgb_key = (r_temp,g_temp,b_temp) # Key for dictionary
+		rgb_key = (r_temp,g_temp,b_temp) # Key for dictionary.
 		if rgb_key in color_dict:
 			color_dict[rgb_key] += 1
 		else:
@@ -260,14 +252,14 @@ for top_fileName in glob.glob(workingDir + '/TopImage*'):
 	if slash_index == -1:
 		slash_index = workingDir.rfind('\\') # Running on windows.
 	color_dir_name = workingDir[:slash_index+1]
-	color_file_number = str(x).zfill(3) # Pad with zeroes
+	color_file_number = str(x).zfill(3) # Pad with zeroes.
 	csvfile_colors = open(color_dir_name + 'TopImage_' + color_file_number
 		                  + '_rgb.csv', 'wb') # CSV file for data.
 	fieldnames_colors = ['r','g','b','count']
 	writerObj2 = csv.DictWriter(csvfile_colors, fieldnames=fieldnames_colors)
 	writerObj2.writeheader()
 	writerObj2.writerow({'r':'','g':'','b':'total count:',
-	                     'count':str(pixelcount)}) # Prints pixel total
+	                     'count':str(pixelcount)}) # Prints pixel total.
 	for key, value in color_dict.items():
 		if value > 2:
 			writerObj2.writerow({'r':str(key[0]),'g':str(key[1]),
@@ -281,12 +273,68 @@ for top_fileName in glob.glob(workingDir + '/TopImage*'):
 		blueAverage = 0
 		greenAverage = 0
 		redAverage = 0
+	# Also print the top 5 occurences into the main output.
+	# This will be cleaned up in the future
+	sorted_x = sorted(color_dict.items(),key=operator.itemgetter(1))
+	if len(sorted_x) > 5:
+		Count_Top_1 = sorted_x[-1][1]
+		Red_Top_1 = sorted_x[-1][0][0]
+		Green_Top_1 = sorted_x[-1][0][1]
+		Blue_Top_1 = sorted_x[-1][0][2]
+		Count_Top_2 = sorted_x[-2][1]
+		Red_Top_2 = sorted_x[-2][0][0]
+		Green_Top_2 = sorted_x[-2][0][1]
+		Blue_Top_2 = sorted_x[-2][0][2]
+		Count_Top_3 = sorted_x[-3][1]
+		Red_Top_3 = sorted_x[-3][0][0]
+		Green_Top_3 = sorted_x[-3][0][1]
+		Blue_Top_3 = sorted_x[-3][0][2]
+		Count_Top_4 = sorted_x[-4][1]
+		Red_Top_4 = sorted_x[-4][0][0]
+		Green_Top_4 = sorted_x[-4][0][1]
+		Blue_Top_4 = sorted_x[-4][0][2]
+		Count_Top_5 = sorted_x[-5][1]
+		Red_Top_5 = sorted_x[-5][0][0]
+		Green_Top_5 = sorted_x[-5][0][1]
+		Blue_Top_5 = sorted_x[-5][0][2]
+	else:
+		# Error with image
+		Count_Top_1 = 0
+		Red_Top_1 = 0
+		Green_Top_1 = 0
+		Blue_Top_1 = 0
+		Count_Top_2 = 0
+		Red_Top_2 = 0
+		Green_Top_2 = 0
+		Blue_Top_2 = 0
+		Count_Top_3 = 0
+		Red_Top_3 = 0
+		Green_Top_3 = 0
+		Blue_Top_3 = 0
+		Count_Top_4 = 0
+		Red_Top_4 = 0
+		Green_Top_4 = 0
+		Blue_Top_4 = 0
+		Count_Top_5 = 0
+		Red_Top_5 = 0
+		Green_Top_5 = 0
+		Blue_Top_5 = 0
 
 	# Final scaling step
 	lengthcm = top_Length_noRotate*top_ScaleFactor
 	widthcm = top_Width_noRotate*top_ScaleFactor
 	heightcm = side_Width*side_ScaleFactor
-	
+	# New height method based on ratio of side pixel length vs.
+	# top pixel length.
+	angle_cor = (90-top_CameraDist_angle)-top_Angle_noRotate
+	angle_cor_rad = math.radians(angle_cor)
+	side_length_cor = side_Length/math.cos(angle_cor_rad)
+	side_ScaleFactor_derived = lengthcm/side_length_cor
+	heightcm_derived = side_Width*side_ScaleFactor_derived
+	print('heightcm = ' + str(heightcm))
+	print('heightcm_derived = ' + str(heightcm_derived))
+
+
 	if debugMode:
 		debugImage = top_imageColor_crop
 		cv2.drawContours(debugImage,top_Contours_noRotate,
@@ -345,7 +393,28 @@ for top_fileName in glob.glob(workingDir + '/TopImage*'):
 						'color value (B)':str(blueAverage),
 						'volume (cm3)':str(volume),
 						'angle (degrees)':str(top_Angle_noRotate),
-						'error':error})
+						'error':error,
+						'height_derived (cm)':str(heightcm_derived),
+						'count1':str(Count_Top_1),
+						'r1':str(Red_Top_1),
+						'g1':str(Green_Top_1),
+						'b1':str(Blue_Top_1),
+						'count2':str(Count_Top_2),
+						'r2':str(Red_Top_2),
+						'g2':str(Green_Top_2),
+						'b2':str(Blue_Top_2),
+						'count3':str(Count_Top_3),
+						'r3':str(Red_Top_3),
+						'g3':str(Green_Top_3),
+						'b3':str(Blue_Top_3),
+						'count4':str(Count_Top_4),
+						'r4':str(Red_Top_4),
+						'g4':str(Green_Top_4),
+						'b4':str(Blue_Top_4),
+						'count5':str(Count_Top_5),
+						'r5':str(Red_Top_5),
+						'g5':str(Green_Top_5),
+						'b5':str(Blue_Top_5)})
 	print('processed: ' + top_fileName + '  [' + str(x) + ']')
 	x += 1
 csvfile.close()

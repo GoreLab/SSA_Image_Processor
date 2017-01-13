@@ -15,11 +15,11 @@ from preproclib import *
 
 # Asking user what needs to be done in terms of set up.
 # note inputs are not required to be capital.
-DirPath = raw_input("What is the directory path(Directory with all images)?")
-filesMade = raw_input("Has the correct file structure been made?(Y/N): ")
-correctionCropDone = raw_input("Have all images already been edited and only the auto crop needs to run?(Y/N):")
+DirPath = raw_input("What is the directory path (folder containing all images)?")
+filesMade = raw_input("Have the program subfolders been generated? (Y/N): ")
+correctionCropDone = raw_input("Have all the images already been made binary and only the auto crop needs to run? (Y/N):")
 if correctionCropDone == "n" or correctionCropDone == "N":
-    imagesAltered = raw_input("are the images cropped and corrected?(Y/N): ")
+    imagesAltered = raw_input("Have the images been cropped by this script previously and are they color corrected? (Y/N): ")
     # Creating file structure is specified that it hasn't been done
     # already.
     if filesMade == "n" or filesMade == "N":
@@ -29,7 +29,7 @@ if correctionCropDone == "n" or correctionCropDone == "N":
     # after discerning what the correction value should be uses the
     # function to run the correction
     if imagesAltered == "n" or imagesAltered == "N":
-        ColorCorrectionDone = raw_input("was color correction done on the top and side images? (Y/N)")
+        ColorCorrectionDone = raw_input("Has color correction been performed on the top and side images? (Y/N)")
         if ColorCorrectionDone == "n" or ColorCorrectionDone == "N":
             redIn = input("please input the red value from the 'gray 3 square': ")
             red = 120
@@ -67,7 +67,7 @@ newPathCropped = CARTDirPath + "\CroppedImages"
 plateCARTMade = "notDone"
 while plateCARTMade != "Y" or plateCARTMade != "y":
     plateCARTMade = raw_input(
-        "please type in 'Y' when you have completed running the plate CART algorithm on the images in edited/side and placed the output in the plate folder")
+        "Please type in 'Y' when you have completed running the plate CART algorithm on the images in \edited\side and placed the output in the \plate folder")
     if plateCARTMade == "Y" or plateCARTMade == "y":
     	break
 # Auto Cropping of side images note that it skips over the 0 image as that was simply a starting image and never
@@ -88,5 +88,7 @@ for file in os.listdir(CARTDirPath):
         originalFilePath = originalDirPathSide + "\\" + originalFileName
         croppedImage = crop_to_plate(originalFilePath, imageDilate, imageBinaryPath,
                                      newPathCropped + "\\" + originalFileName)
-print("now run the side and top CART algorithms to get the output")
+print("Now run the CART algorithm on the side images in plate\ CroppedImages\ ")
+print("Also run the CART algorithm on the top images in seedimages\ edited\ top\ ")
+print("Save both to SeedImages\Output")
 exit()

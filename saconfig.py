@@ -67,18 +67,3 @@ topCroptop = 300					# pixels
 debugmode = 0
 # !! Read documentation before making changes to this file !!
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

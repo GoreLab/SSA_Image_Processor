@@ -331,9 +331,6 @@ for top_fileName in glob.glob(workingDir + '/TopImage*'):
 	side_length_cor = side_Length/math.cos(angle_cor_rad)
 	side_ScaleFactor_derived = lengthcm/side_length_cor
 	heightcm_derived = side_Width*side_ScaleFactor_derived
-	print('heightcm = ' + str(heightcm))
-	print('heightcm_derived = ' + str(heightcm_derived))
-
 
 	if debugMode:
 		debugImage = top_imageColor_crop

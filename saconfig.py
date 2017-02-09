@@ -31,6 +31,9 @@ Specifics are explained below and in the documentation on Google Drive:
                                	directly from the center of the
                                	side camera first intersects the
                                	top image. See documentation.
+
+Advanced User Options:
+
 	top_cropleft - When pre-processing the top image, this sets the
 								number of columns to be cropped from
 								the left side. It is referred to again
@@ -55,15 +58,19 @@ __author__ = 'Kevin Kreher'
 
 # !! Read documentation before making changes to this file !!
 # MODIFY BELOW:
-# Calibration data source: July 20, 2016 calibration images
-topScaleFactor = 0.003118 			# centimeters/pixel
-topCameraDistin = 1.65625 			# inches
-topCameraDistangle = 76.4 			# degrees
-sideScaleFactoreqM = 0.00154
-sideScaleFactoreqB = 0.0003111
-sideScaleFactorintersectX = 466
+# Calibration data date: January 2, 2017
+# Calibration data source: Oat calibration images
+topScaleFactor = 0.002934381			# centimeters/pixel
+topCameraDistin = 1.6875 			# inches
+topCameraDistangle = 83.5 			# degrees
+sideScaleFactoreqM = 0.0015
+sideScaleFactoreqB = 0.0007
+sideScaleFactorintersectX = 244
+
+# ADVANCED USERS ONLY:
 topCropleft = 300					# pixels
 topCroptop = 300					# pixels
 debugmode = 0
+# add threshold
+# add error levels
 # !! Read documentation before making changes to this file !!
-

@@ -45,7 +45,7 @@ workingDir = raw_input('Directory name (ex. test12801/SeedImages)?: ')
 csvfile = open(workingDir + '_processed.csv', 'wb') # CSV file for data.
 fieldnames = ['number','file path','length (cm)','width (cm)','height (cm)',
               'color value (R)','color value (G)','color value (B)',
-			  'volume (cm3)','angle (degrees)','error','height_derived (cm)',
+			  'volume (cm3)','angle (degrees)','error','height_ratiomethod (cm)',
 			  'count1','r1','g1','b1','count2','r2','g2','b2','count3','r3',
 			  'g3','b3','count4','r4','g4','b4','count5','r5','g5','b5']
 writerObj = csv.DictWriter(csvfile, fieldnames=fieldnames)
@@ -128,9 +128,6 @@ for top_fileName in glob.glob(workingDir + '/TopImage*'):
 
 	# Calculate the length, width, etc. of the side image seed.
 	side_threshVal = 15
-	# Note that for calcSideScaleFactor, the two arguments cropleft
-	#    and croptop are dependent on pre-processing parameters.
-	#    Specifically alter_top_crop (in preproclib.py).
 	side_Variables = findLengthWidth(side_imageBW_crop,side_threshVal)
 	side_Length = side_Variables['length']
 	side_Width = side_Variables['width']
@@ -328,9 +325,12 @@ for top_fileName in glob.glob(workingDir + '/TopImage*'):
 	# top pixel length.
 	angle_cor = (90-top_CameraDist_angle)-top_Angle_noRotate
 	angle_cor_rad = math.radians(angle_cor)
-	side_length_cor = side_Length/math.cos(angle_cor_rad)
-	side_ScaleFactor_derived = lengthcm/side_length_cor
-	heightcm_derived = side_Width*side_ScaleFactor_derived
+	if angle_cor != 90 and side_Length != 0:
+		side_length_cor = side_Length/math.cos(angle_cor_rad)
+		side_ScaleFactor_ratiomethod = lengthcm/side_length_cor
+		heightcm_ratiomethod = side_Width*side_ScaleFactor_ratiomethod
+	else:
+		heightcm_ratiomethod = 0
 
 	if debugMode:
 		debugImage = top_imageColor_crop
@@ -391,7 +391,7 @@ for top_fileName in glob.glob(workingDir + '/TopImage*'):
 						'volume (cm3)':str(volume),
 						'angle (degrees)':str(top_Angle_noRotate),
 						'error':error,
-						'height_derived (cm)':str(heightcm_derived),
+						'height_ratiomethod (cm)':str(heightcm_ratiomethod),
 						'count1':str(Count_Top_1),
 						'r1':str(Red_Top_1),
 						'g1':str(Green_Top_1),

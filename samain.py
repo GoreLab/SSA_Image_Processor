@@ -78,7 +78,7 @@ for top_fileName in glob.glob(workingDir + '/TopImage*'):
 		cv2.destroyWindow(str(side_fileName))
 
 	# Calculate the length, width, etc. of the top image seed.
-	top_threshValue = 60
+	top_threshValue = sacfg.topthreshValue
 	top_Variables_noRotate = findLengthWidth(top_imageBW_crop,top_threshValue)
 	top_Length_noRotate = top_Variables_noRotate['length']
 	top_Width_noRotate = top_Variables_noRotate['width']
@@ -127,7 +127,7 @@ for top_fileName in glob.glob(workingDir + '/TopImage*'):
 		cv2.destroyWindow(str(top_fileName))
 
 	# Calculate the length, width, etc. of the side image seed.
-	side_threshVal = 15
+	side_threshVal = sacfg.sidethreshVal
 	side_Variables = findLengthWidth(side_imageBW_crop,side_threshVal)
 	side_Length = side_Variables['length']
 	side_Width = side_Variables['width']
@@ -169,27 +169,27 @@ for top_fileName in glob.glob(workingDir + '/TopImage*'):
 		cv2.destroyWindow(str(top_fileName))
 
 	# Code for detecting any processing errors.
-	top_Area_max_error = 40000
-	top_Area_min_error = 100
-	top_Angle_max_error = 80
-	side_Area_max_error = 16000
-	side_Area_min_error = 100
+	top_Area_max_error = sacfg.topAreamaxerror
+	top_Area_min_error = sacfg.topAreaminerror
+	top_Angle_max_error = sacfg.topAnglemaxerror
+	side_Area_max_error = sacfg.sideAreamaxerror
+	side_Area_min_error = sacfg.sideAreaminerror
 	# No seeds (oat), when properly detected were larger/smaller
 	# than these numbers in tests. Applies to top/side.
 	error = ''
 	if contourHitsEdge(top_largestIndex_noRotate,top_Contours_noRotate,
 		               top_imageBW_crop):
 		error += 'top_contour_conflicts_edge-'
-	if top_Area_noRotate <= top_Area_min_error:
-		error += 'top_area_too_small-'
-	if side_Area <= side_Area_min_error:
-		error += 'side_area_too_small-'
 	if top_Area_noRotate >= top_Area_max_error:
 		error += 'top_area_too_large-'
-	if side_Area >= side_Area_max_error:
-		error += 'side_area_too_large-'
+	if top_Area_noRotate <= top_Area_min_error:
+		error += 'top_area_too_small-'
 	if abs(top_Angle_noRotate) > top_Angle_max_error:
 		error += 'angle_over_max_error-'
+	if side_Area >= side_Area_max_error:
+		error += 'side_area_too_large-'
+	if side_Area <= side_Area_min_error:
+		error += 'side_area_too_small-'
 
 	# Volume calculation occurs below if no errors are detected.
 	if len(error) < 1:

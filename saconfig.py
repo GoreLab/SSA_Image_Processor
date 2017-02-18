@@ -27,27 +27,27 @@ Specifics are explained below and in the documentation on Google Drive:
                                	linear equation with M being the slope
                                	and B being the y-intercept.
     side_ScaleFactor_eqB - See side_ScaleFactor_eqM.
-    side_ScaleFactor_intersectX - The x position where a line coming
+    side_ScaleFactor_intersect_X - The x position where a line coming
                                	directly from the center of the
                                	side camera first intersects the
                                	top image. See documentation.
+    debugmode - 1 for debug mode (shows images at each step), 0 for
+								normal operation. Slows process.
 
 Advanced User Options:
 
-	top_cropleft - When pre-processing the top image, this sets the
+	top_Crop_left - When pre-processing the top image, this sets the
 								number of columns to be cropped from
 								the left side. It is referred to again
 								later when calculating position for
 								calibration calculations.
 								(units: pixels)
-	top_croptop - When pre-processing the top image, this sets the
+	top_Crop_top - When pre-processing the top image, this sets the
 								number of rows to be cropped from
 								the top of the image. It is referred
 								to again later when calculating
 								position for calibration calculations.
 								(units: pixels)
-	debugmode - 1 for debug mode (shows images at each step), 0 for
-								normal operation.
 
 Developed and tested with Python 2.7.x and OpenCV 2.4.x.
 
@@ -58,19 +58,29 @@ __author__ = 'Kevin Kreher'
 
 # !! Read documentation before making changes to this file !!
 # MODIFY BELOW:
+
 # Calibration data date: January 2, 2017
 # Calibration data source: Oat calibration images
-topScaleFactor = 0.002934381			# centimeters/pixel
+topScaleFactor = 0.002934381		# centimeters/pixel
 topCameraDistin = 1.6875 			# inches
 topCameraDistangle = 83.5 			# degrees
 sideScaleFactoreqM = 0.0015
 sideScaleFactoreqB = 0.0007
-sideScaleFactorintersectX = 244
+sideScaleFactorintersectX = 244		#pixels
+debugmode = 0
 
 # ADVANCED USERS ONLY:
+
+# Top image crops (referenced by samain.py and preproclib.py)
 topCropleft = 300					# pixels
 topCroptop = 300					# pixels
-debugmode = 0
-# add threshold
-# add error levels
+# Error trigger values (referenced by samain.py)
+topAreamaxerror = 40000 		# Top Area >= top_Area_max_error
+topAreaminerror = 100 			# Top Area <= top_Area_min_error
+topAnglemaxerror = 80 			# Top Angle > top_Angle_max_error
+sideAreamaxerror = 16000 		# Side Area >= side_Area_max_error
+sideAreaminerror = 100 			# Side Area <= side_Area_min_error
+# Image binary threshold (used with OpenCV function cv2.threshold)
+topthreshValue = 60
+sidethreshVal = 15
 # !! Read documentation before making changes to this file !!

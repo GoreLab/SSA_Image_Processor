@@ -10,24 +10,24 @@ record via a comment what data set the calibration data was taken from.
 
 Specifics are explained below and in the documentation on Google Drive:
 
-   	top_ScaleFactor - Measured manually at center of top images.
+   	topScaleFactor - Measured manually at center of top images.
    								(units: centimeters/pixel)
-	top_CameraDist_in - Distance in inches that side camera center
+    topCameraDistin - Distance in inches that side camera center
                             	line is out of the top image. See
                             	documentation.
                             	(units: inches)
-    top_CameraDist_angle - Angle in degrees as measured from side
+    topCameraDistangle - Angle in degrees as measured from side
                                	camera center line to horizontal
                                	(x-axis) in the top image. See
                                	documentation.
                                	(units: degrees)
-   	side_ScaleFactor_eqM - Using the Scaling Factor Calculator (see
+   	sideScaleFactoreqM - Using the Scaling Factor Calculator (see
                                	documentation) provides the user with
                                	two output variables describing a
                                	linear equation with M being the slope
                                	and B being the y-intercept.
-    side_ScaleFactor_eqB - See side_ScaleFactor_eqM.
-    side_ScaleFactor_intersect_X - The x position where a line coming
+    sideScaleFactoreqB - See sideScaleFactoreqM.
+    sideScaleFactorintersectX - The x position where a line coming
                                	directly from the center of the
                                	side camera first intersects the
                                	top image. See documentation.
@@ -36,18 +36,30 @@ Specifics are explained below and in the documentation on Google Drive:
 
 Advanced User Options:
 
-	top_Crop_left - When pre-processing the top image, this sets the
+	topCropleft - When pre-processing the top image, this sets the
 								number of columns to be cropped from
 								the left side. It is referred to again
 								later when calculating position for
 								calibration calculations.
 								(units: pixels)
-	top_Crop_top - When pre-processing the top image, this sets the
+	topCroptop - When pre-processing the top image, this sets the
 								number of rows to be cropped from
 								the top of the image. It is referred
 								to again later when calculating
 								position for calibration calculations.
 								(units: pixels)
+  sideCropxpos - Used when pre-processing the side image, this sets
+                the x position representing the left side of the crop. Cropping
+                the side image speeds up processing.
+  sideCropypos - Used when pre-processing the side image, this sets
+                the y position representing the bottom of the crop. Cropping
+                the side image speeds up processing.
+  sideCropwidth - Used when pre-processing the side image, this sets
+                the width (x axis) of the crop. Cropping the side 
+                image speeds up processing.
+  sideCropheight - Used when pre-processing the side image, this sets
+                the height (y axis) of the crop. Cropping the side 
+                image speeds up processing.
 
 Developed and tested with Python 2.7.x and OpenCV 2.4.x.
 
@@ -69,11 +81,15 @@ sideScaleFactoreqB = 0.0007
 sideScaleFactorintersectX = 244		#pixels
 debugmode = 0
 
-# ADVANCED USERS ONLY:
-
+# ADVANCED USERS:
 # Top image crops (referenced by samain.py and preproclib.py)
-topCropleft = 300					# pixels
-topCroptop = 300					# pixels
+topCropleft = 300         # pixels
+topCroptop = 300          # pixels
+# Side image crops (referenced by preproclib.py - alter_side)
+sideCropxpos = 850        # pixels
+sideCropypos = 0          # pixels
+sideCropwidth = 1000      # pixels
+sideCropheight = 990      # pixels
 # Error trigger values (referenced by samain.py)
 topAreamaxerror = 40000 		# Top Area >= top_Area_max_error
 topAreaminerror = 100 			# Top Area <= top_Area_min_error

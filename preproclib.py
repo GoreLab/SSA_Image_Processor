@@ -152,7 +152,7 @@ def alter_side(dirPath, saveDirPath):
     for file in os.listdir(dirPath):
         if file.endswith(".png") or file.endswith(".jpg"):
             image = Image.open(dirPath + "\\" + file)
-            image_cropped = image.crop((850, 0, 1000, 990))
+            image_cropped = image.crop((sacfg.sideCropxpos,sacfg.sideCropypos,sacfg.sideCropwidth,sacfg.sideCropheight))
             image_rotated = image_cropped.rotate(90,expand=True)
             image_rotated.save(saveDirPath + file)
 

@@ -270,52 +270,6 @@ for top_fileName in glob.glob(workingDir + '/TopImage*'):
 		blueAverage = 0
 		greenAverage = 0
 		redAverage = 0
-	# Also print the top 5 occurences into the main output.
-	# This will be cleaned up in the future
-	sorted_x = sorted(color_dict.items(),key=operator.itemgetter(1))
-	if len(sorted_x) > 5:
-		Count_Top_1 = sorted_x[-1][1]
-		Red_Top_1 = sorted_x[-1][0][0]
-		Green_Top_1 = sorted_x[-1][0][1]
-		Blue_Top_1 = sorted_x[-1][0][2]
-		Count_Top_2 = sorted_x[-2][1]
-		Red_Top_2 = sorted_x[-2][0][0]
-		Green_Top_2 = sorted_x[-2][0][1]
-		Blue_Top_2 = sorted_x[-2][0][2]
-		Count_Top_3 = sorted_x[-3][1]
-		Red_Top_3 = sorted_x[-3][0][0]
-		Green_Top_3 = sorted_x[-3][0][1]
-		Blue_Top_3 = sorted_x[-3][0][2]
-		Count_Top_4 = sorted_x[-4][1]
-		Red_Top_4 = sorted_x[-4][0][0]
-		Green_Top_4 = sorted_x[-4][0][1]
-		Blue_Top_4 = sorted_x[-4][0][2]
-		Count_Top_5 = sorted_x[-5][1]
-		Red_Top_5 = sorted_x[-5][0][0]
-		Green_Top_5 = sorted_x[-5][0][1]
-		Blue_Top_5 = sorted_x[-5][0][2]
-	else:
-		# Error with image
-		Count_Top_1 = 0
-		Red_Top_1 = 0
-		Green_Top_1 = 0
-		Blue_Top_1 = 0
-		Count_Top_2 = 0
-		Red_Top_2 = 0
-		Green_Top_2 = 0
-		Blue_Top_2 = 0
-		Count_Top_3 = 0
-		Red_Top_3 = 0
-		Green_Top_3 = 0
-		Blue_Top_3 = 0
-		Count_Top_4 = 0
-		Red_Top_4 = 0
-		Green_Top_4 = 0
-		Blue_Top_4 = 0
-		Count_Top_5 = 0
-		Red_Top_5 = 0
-		Green_Top_5 = 0
-		Blue_Top_5 = 0
 
 	# Final scaling step
 	lengthcm = top_Length_noRotate*top_ScaleFactor
@@ -323,6 +277,7 @@ for top_fileName in glob.glob(workingDir + '/TopImage*'):
 	heightcm = side_Width*side_ScaleFactor
 	# New height method based on ratio of side pixel length vs.
 	# top pixel length.
+	# NO LONGER USED - REMOVED FROM OUTPUT
 	angle_cor = (90-top_CameraDist_angle)-top_Angle_noRotate
 	angle_cor_rad = math.radians(angle_cor)
 	if angle_cor != 90 and side_Length != 0:
@@ -390,28 +345,7 @@ for top_fileName in glob.glob(workingDir + '/TopImage*'):
 						'color value (B)':str(blueAverage),
 						'volume (cm3)':str(volume),
 						'angle (degrees)':str(top_Angle_noRotate),
-						'error':error,
-						'height_ratiomethod (cm)':str(heightcm_ratiomethod),
-						'count1':str(Count_Top_1),
-						'r1':str(Red_Top_1),
-						'g1':str(Green_Top_1),
-						'b1':str(Blue_Top_1),
-						'count2':str(Count_Top_2),
-						'r2':str(Red_Top_2),
-						'g2':str(Green_Top_2),
-						'b2':str(Blue_Top_2),
-						'count3':str(Count_Top_3),
-						'r3':str(Red_Top_3),
-						'g3':str(Green_Top_3),
-						'b3':str(Blue_Top_3),
-						'count4':str(Count_Top_4),
-						'r4':str(Red_Top_4),
-						'g4':str(Green_Top_4),
-						'b4':str(Blue_Top_4),
-						'count5':str(Count_Top_5),
-						'r5':str(Red_Top_5),
-						'g5':str(Green_Top_5),
-						'b5':str(Blue_Top_5)})
+						'error':error})
 	print('processed: ' + top_fileName + '  [' + str(x) + ']')
 	x += 1
 csvfile.close()

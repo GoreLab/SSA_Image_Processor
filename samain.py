@@ -245,23 +245,24 @@ for top_fileName in glob.glob(workingDir + '/TopImage*'):
 			color_dict[rgb_key] = 1
 		i += 1
 	# An additional csv file is created to store RGB color information.
-	slash_index = workingDir.rfind('/')
-	if slash_index == -1:
-		slash_index = workingDir.rfind('\\') # Running on windows.
-	color_dir_name = workingDir[:slash_index+1]
-	color_file_number = str(x).zfill(3) # Pad with zeroes.
-	csvfile_colors = open(color_dir_name + 'TopImage_' + color_file_number
-		                  + '_rgb.csv', 'wb') # CSV file for data.
-	fieldnames_colors = ['r','g','b','count']
-	writerObj2 = csv.DictWriter(csvfile_colors, fieldnames=fieldnames_colors)
-	writerObj2.writeheader()
-	writerObj2.writerow({'r':'','g':'','b':'total count:',
-	                     'count':str(pixelcount)}) # Prints pixel total.
-	for key, value in color_dict.items():
-		if value > 2:
-			writerObj2.writerow({'r':str(key[0]),'g':str(key[1]),
-				                 'b':str(key[2]),'count':str(value)})
-	csvfile_colors.close()
+	# NO LONGER USED - REMOVED FROM OUTPUT
+	#slash_index = workingDir.rfind('/')
+	#if slash_index == -1:
+	#	slash_index = workingDir.rfind('\\') # Running on windows.
+	#color_dir_name = workingDir[:slash_index+1]
+	#color_file_number = str(x).zfill(3) # Pad with zeroes.
+	#csvfile_colors = open(color_dir_name + 'TopImage_' + color_file_number
+	#	                  + '_rgb.csv', 'wb') # CSV file for data.
+	#fieldnames_colors = ['r','g','b','count']
+	#writerObj2 = csv.DictWriter(csvfile_colors, fieldnames=fieldnames_colors)
+	#writerObj2.writeheader()
+	#writerObj2.writerow({'r':'','g':'','b':'total count:',
+	#                     'count':str(pixelcount)}) # Prints pixel total.
+	#for key, value in color_dict.items():
+	#	if value > 2:
+	#		writerObj2.writerow({'r':str(key[0]),'g':str(key[1]),
+	#			                 'b':str(key[2]),'count':str(value)})
+	#csvfile_colors.close()
 	if pixelcount > 0:
 		blueAverage = blue/pixelcount
 		greenAverage = green/pixelcount
